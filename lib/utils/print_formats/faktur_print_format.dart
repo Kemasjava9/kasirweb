@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
-import 'package:pdf/pdf.dart' show PdfColors;
 
 class FakturPrintFormat {
   static Future<Uint8List> buildFakturPdf(
@@ -191,5 +190,6 @@ class FakturPrintFormat {
     return pdf.save();
   }
 }
+
 
 
