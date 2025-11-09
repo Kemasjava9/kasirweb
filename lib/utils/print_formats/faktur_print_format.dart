@@ -105,7 +105,7 @@ class FakturPrintFormat {
               pw.Table.fromTextArray(
                 data: tableData,
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                headerDecoration: const pw.BoxDecoration(color: pw.Color.fromInt(0xFFE0E0E0)),
                 cellAlignment: pw.Alignment.centerLeft,
                 border: pw.TableBorder.all(width: 0.5),
                 cellStyle: const pw.TextStyle(fontSize: 10),
@@ -191,4 +191,5 @@ class FakturPrintFormat {
     return pdf.save();
   }
 }
+
 
