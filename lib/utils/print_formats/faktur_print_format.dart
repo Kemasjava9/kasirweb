@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
+import 'package:pdf/pdf.dart';
 
 class FakturPrintFormat {
   static Future<Uint8List> buildFakturPdf(
@@ -75,7 +76,7 @@ class FakturPrintFormat {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'JAVA KEMAS',
+                        'NOTA PENJUALAN',
                         style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
                       ),
                     ],
