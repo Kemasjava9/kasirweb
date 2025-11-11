@@ -19,13 +19,13 @@ jobs:
         flutter-version: 'stable'
 
     - name: Setup Java JDK
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4   # ✅ update to v4 (v3 is deprecated soon)
       with:
         java-version: '11'
         distribution: 'temurin'
 
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
+      uses: android-actions/setup-android@v3  # ✅ ensure latest version
 
     - name: Install dependencies
       run: flutter pub get
