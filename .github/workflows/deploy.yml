@@ -16,17 +16,16 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: 'latest'
-        channel: 'stable'
+        flutter-version: '3.24.5'   # ✅ pin explicit version for reliability
 
     - name: Setup Java JDK
-      uses: actions/setup-java@v4   # ✅ update to v4 (v3 is deprecated soon)
+      uses: actions/setup-java@v4
       with:
         java-version: '11'
         distribution: 'temurin'
 
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3  # ✅ ensure latest version
+      uses: android-actions/setup-android@v3
 
     - name: Install dependencies
       run: flutter pub get
