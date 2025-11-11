@@ -3,39 +3,51 @@ name: Deploy Flutter Web to GitHub Pages
 on:
   push:
     branches:
-      - main  # Workflow jalan setiap push ke branch main
+      - main  # setiap push ke main akan trigger deploy
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      # 2. Setup Flutter (stable channel)
-      - name: Setup Flutter
-        run: |
-          git clone https://github.com/flutter/flutter.git --branch stable --depth 1
-          export PATH="$PATH:`pwd`/flutter/bin"
-          flutter --version
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 'stable'
 
-      # 3. Install dependencies
-      - name: Install dependencies
-        run: |
-          export PATH="$PATH:`pwd`/flutter/bin"
-          flutter pub get
+    - name: Setup Java JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
 
-      # 4. Build Flutter Web
-      - name: Build Flutter Web
-        run: |
-          export PATH="$PATH:`pwd`/flutter/bin"
-          flutter build web --release --base-href "/kasirweb/"
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
 
-      # 5. Deploy to GitHub Pages
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GH_PAT }}   # Pakai PAT
-          publish_dir: ./build/web
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build Flutter Web
+      run: flutter build web --release
+
+    - name: Build Flutter APK
+      run: flutter build apk --release
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: penjualan.apk
+        path: build/app/outputs/flutter-apk/app-release.apk
+
+    - name: Copy APK to Web Build Directory
+      run: cp build/app/outputs/flutter-apk/app-release.apk build/web/penjualan.apk
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GH_PAT }}
+        publish_dir: ./build/web
+        publish_branch: gh-pages
