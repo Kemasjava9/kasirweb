@@ -3,7 +3,7 @@ name: Deploy Flutter Web to GitHub Pages
 on:
   push:
     branches:
-      - main  # setiap push ke main akan trigger deploy
+      - main
 
 jobs:
   build-and-deploy:
@@ -16,7 +16,8 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.24.5'   # ✅ pin explicit version for reliability
+        flutter-version: '3.24.5'
+        cache: true
 
     - name: Setup Java JDK
       uses: actions/setup-java@v4
