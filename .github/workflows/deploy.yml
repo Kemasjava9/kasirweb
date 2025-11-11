@@ -16,7 +16,8 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: 'stable'
+        flutter-version: 'latest'
+        channel: 'stable'
 
     - name: Setup Java JDK
       uses: actions/setup-java@v4   # ✅ update to v4 (v3 is deprecated soon)
