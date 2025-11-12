@@ -1,4 +1,4 @@
-name: Deploy Flutter Web
+name: Deploy Flutter Web and APK
 
 on:
   push:
@@ -27,18 +27,27 @@ jobs:
       - name: Clean build
         run: flutter clean
 
+      # Build Flutter Web (Release Mode)
       - name: Build Flutter Web
         run: flutter build web --release
 
+      # Build APK (Release Mode)
       - name: Build APK
         run: flutter build apk --release -t lib/main.dart
         
+      # Move the APK to the build/web directory
+      - name: Move APK to build/web
+        run: |
+          mv build/app/outputs/flutter-apk/*.apk build/web/
+
+      # Upload APK as artifact (from build/web)
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: flutter-apk
-          path: build/app/outputs/flutter-apk/*.apk
+          path: build/web/*.apk
 
+      # Deploy Flutter Web to GitHub Pages
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v3
         with:
