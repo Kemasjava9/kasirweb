@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart'; // Import url_launcher untuk membuka URL
 import 'dashboard.dart';
 
 class LoginPage extends StatefulWidget {
@@ -148,6 +149,16 @@ class _LoginPageState extends State<LoginPage> {
         ],
       ),
     );
+  }
+
+  // Function to launch the APK download link
+  void _launchURL() async {
+    const url = 'https://github.com/Kemasjava9/kasirweb/blob/gh-pages/app-release.apk'; // Replace with your actual APK URL
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      _showErrorDialog('Gagal membuka URL untuk mendownload APK');
+    }
   }
 
   @override
@@ -354,6 +365,13 @@ class _LoginPageState extends State<LoginPage> {
             ],
           ),
         ),
+      ),
+      
+      // Add Floating Action Button
+      floatingActionButton: FloatingActionButton(
+        onPressed: _launchURL,  // Function to launch APK URL
+        child: const Icon(Icons.download),
+        backgroundColor: Colors.blue,
       ),
     );
   }
