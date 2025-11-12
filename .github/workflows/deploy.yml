@@ -1,64 +1,28 @@
-name: Deploy Flutter Web to GitHub Pages
+name: Deploy Flutter Web
 
 on:
   push:
-    branches:
-      - main  # setiap push ke main akan trigger deploy
+    branches: [main]
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-    # 1️⃣ Checkout repository
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    # 2️⃣ Setup Flutter (pin ke versi stabil & sesuai Dart 3.9.x)
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.24.5'   # Jangan pakai "channel: stable"
-        cache: true
-
-    # 3️⃣ Setup Java (untuk build Android)
-    - name: Setup Java JDK
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-
-    # 4️⃣ Setup Android SDK
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-
-    # 5️⃣ Install dependencies
-    - name: Install dependencies
-      run: flutter pub get
-
-    # 6️⃣ Build Flutter Web
-    - name: Build Flutter Web
-      run: flutter build web --release
-
-    # 7️⃣ Build Flutter APK
-    - name: Build Flutter APK
-      run: flutter build apk --release
-
-    # 8️⃣ Upload APK sebagai artifact (bisa diunduh dari tab Actions)
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: penjualan.apk
-        path: build/app/outputs/flutter-apk/app-release.apk
-
-    # 9️⃣ Copy APK ke folder web agar bisa diakses via GitHub Pages
-    - name: Copy APK to Web Build Directory
-      run: cp build/app/outputs/flutter-apk/app-release.apk build/web/penjualan.apk
-
-    # 🔟 Deploy ke GitHub Pages
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v4
-      with:
-        github_token: ${{ secrets.GH_PAT }}   # Token dengan izin repo
-        publish_dir: ./build/web
-        publish_branch: gh-pages
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Flutter Web
+        run: flutter build web --release --web-renderer html
+        
+      - name: Upload to GitHub Pages
+        uses: crazy-max/ghaction-github-pages@v3
+        with:
+          target_branch: gh-pages
+          build_dir: build/web
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_PAT }}
