@@ -153,7 +153,7 @@ class _LoginPageState extends State<LoginPage> {
 
   // Function to launch the APK download link
   void _launchURL() async {
-    const url = 'https://github.com/Kemasjava9/kasirweb/blob/gh-pages/app-release.apk'; // Replace with your actual APK URL
+    const url = 'app-release.apk'; // Replace with your actual APK URL
     if (await canLaunch(url)) {
       await launch(url);
     } else {
@@ -383,3 +383,4 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 }
+
