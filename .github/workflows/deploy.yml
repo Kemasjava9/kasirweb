@@ -32,7 +32,6 @@ jobs:
 
       - name: Build APK
         run: flutter build apk --release -t lib/main.dart
-
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v3
         with:
