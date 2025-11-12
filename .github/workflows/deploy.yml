@@ -13,16 +13,16 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'  # ✅ Use a known stable version
+          flutter-version: '3.35.7'  # ✅ Matches your local version (Dart 3.9.2)
           channel: 'stable'
 
       - name: Enable Flutter Web
         run: flutter config --enable-web
 
-      - name: Install dependencies
+      - name: Get dependencies
         run: flutter pub get
 
-      - name: Clean project
+      - name: Clean build
         run: flutter clean
 
       - name: Build Flutter Web
