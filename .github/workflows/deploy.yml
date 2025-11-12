@@ -9,17 +9,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
-        
+        with:
+          flutter-version: '3.24.3'  # ✅ Use a known stable version
+          channel: 'stable'
+
+      - name: Enable Flutter Web
+        run: flutter config --enable-web
+
       - name: Install dependencies
         run: flutter pub get
-        
+
+      - name: Clean project
+        run: flutter clean
+
       - name: Build Flutter Web
         run: flutter build web --release
-        
-      - name: Upload to GitHub Pages
+
+      - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v3
         with:
           target_branch: gh-pages
