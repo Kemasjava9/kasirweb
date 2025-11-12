@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'dashboard.dart';
 
 class LoginPage extends StatefulWidget {
@@ -151,24 +150,9 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void _downloadApk() async {
-    const url = 'build/app/outputs/flutter-apk/app-release.apk';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    } else {
-      _showErrorDialog('Tidak dapat membuka link download APK');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      floatingActionButton: FloatingActionButton(
-        onPressed: _downloadApk,
-        tooltip: 'Download APK',
-        child: const Icon(Icons.download),
-      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -378,4 +362,5 @@ class _LoginPageState extends State<LoginPage> {
     _passwordController.dispose();
     super.dispose();
   }
+
 }
