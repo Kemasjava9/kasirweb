@@ -17,7 +17,7 @@ jobs:
         run: flutter pub get
         
       - name: Build Flutter Web
-        run: flutter build web --release --web-renderer html
+        run: flutter build web --release
         
       - name: Upload to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v3
