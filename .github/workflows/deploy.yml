@@ -31,7 +31,13 @@ jobs:
         run: flutter build web --release
 
       - name: Build APK
-        run: flutter build apk --release -t lib/main.dart --build-dir=output/
+        run: flutter build apk --release -t lib/main.dart
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: flutter-apk
+          path: build/app/outputs/flutter-apk/*.apk
 
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v3
