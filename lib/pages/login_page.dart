@@ -153,6 +153,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -186,7 +187,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ],
               ),
-              
+
               _hasConnection
                   ? const SizedBox(height: 40)
                   : Padding(
@@ -217,7 +218,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-              
+
               // Login Form
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
@@ -252,9 +253,9 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Password Field
                     TextField(
                       controller: _passwordController,
@@ -284,9 +285,9 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Login Button
                     SizedBox(
                       width: double.infinity,
@@ -339,8 +340,9 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               ),
+
               const SizedBox(height: 20),
-              
+
               // Footer
               const Text(
                 '© 2025 Aplikasi Penjualan',
@@ -362,5 +364,4 @@ class _LoginPageState extends State<LoginPage> {
     _passwordController.dispose();
     super.dispose();
   }
-
 }
