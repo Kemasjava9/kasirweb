@@ -31,7 +31,7 @@ jobs:
         run: flutter build web --release
 
       - name: Build APK
-        run: flutter build apk --release -t lib/main.dart --output=output/
+        run: flutter build apk --release -t lib/main.dart --build-dir=output/
 
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v3
