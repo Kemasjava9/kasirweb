@@ -20,8 +20,10 @@ class PenjualanProvider extends ChangeNotifier {
   String? _selectedKomisi;
   String? _selectedMetodePembayaran;
   String? _selectedStatusPembayaran;
+  DateTime _selectedDate = DateTime.now();
   final List<DetailPenjualan> _cartItems = [];
   double _totalBelanja = 0;
+  List<PembayaranTermin> _pembayaranTermin = [];
 
   PenjualanProvider({FirestoreService? firestoreService}) 
     : _firestoreService = firestoreService ?? FirestoreService();
@@ -37,8 +39,10 @@ class PenjualanProvider extends ChangeNotifier {
   String? get selectedKomisi => _selectedKomisi;
   String? get selectedMetodePembayaran => _selectedMetodePembayaran;
   String? get selectedStatusPembayaran => _selectedStatusPembayaran;
+  DateTime get selectedDate => _selectedDate;
   List<DetailPenjualan> get cartItems => _cartItems;
   double get totalBelanja => _totalBelanja;
+  List<PembayaranTermin> get pembayaranTermin => _pembayaranTermin;
 
   // Setters
   set selectedPelanggan(String? value) {
@@ -63,6 +67,11 @@ class PenjualanProvider extends ChangeNotifier {
 
   set selectedStatusPembayaran(String? value) {
     _selectedStatusPembayaran = value;
+    notifyListeners();
+  }
+
+  set selectedDate(DateTime value) {
+    _selectedDate = value;
     notifyListeners();
   }
 
@@ -166,10 +175,9 @@ class PenjualanProvider extends ChangeNotifier {
       return null;
     }
 
-    final now = DateTime.now();
     return {
       'pelanggan': _selectedPelanggan,
-      'tanggal': now,
+      'tanggal': _selectedDate,
       'cara_bayar': _selectedMetodePembayaran,
       'status_pembayaran': _selectedStatusPembayaran,
       'items': _cartItems.map((e) => e.toMap()).toList(),
@@ -181,6 +189,7 @@ class PenjualanProvider extends ChangeNotifier {
 
   void clearCart() {
     _cartItems.clear();
+    _pembayaranTermin.clear();
     _updateTotalBelanja();
     notifyListeners();
   }
@@ -192,5 +201,58 @@ class PenjualanProvider extends ChangeNotifier {
   }) {
     _totalBelanja = _cartItems.fold<double>(0, (sum, item) => sum + item.subtotal) - diskon + ongkosKirim + biayaLain;
     notifyListeners();
+  }
+
+  void setupPembayaranTermin(double total) {
+    _pembayaranTermin = [
+      PembayaranTermin(
+        idTermin: 'DP_${DateTime.now().millisecondsSinceEpoch}',
+        nofakturJual: '',
+        jenisTermin: 'DP',
+        jumlah: total * 0.3, // 30% DP
+        status: 'Belum Dibayar',
+      ),
+      PembayaranTermin(
+        idTermin: 'Pengiriman_${DateTime.now().millisecondsSinceEpoch}',
+        nofakturJual: '',
+        jenisTermin: 'Pengiriman',
+        jumlah: total * 0.3, // 30% saat pengiriman
+        status: 'Belum Dibayar',
+      ),
+      PembayaranTermin(
+        idTermin: 'Pelunasan_${DateTime.now().millisecondsSinceEpoch}',
+        nofakturJual: '',
+        jenisTermin: 'Pelunasan',
+        jumlah: total * 0.4, // 40% pelunasan
+        status: 'Belum Dibayar',
+      ),
+    ];
+    notifyListeners();
+  }
+
+  void updateTerminStatus(String idTermin, String status, {DateTime? tanggalBayar, String? catatan}) {
+    final index = _pembayaranTermin.indexWhere((t) => t.idTermin == idTermin);
+    if (index != -1) {
+      _pembayaranTermin[index] = PembayaranTermin(
+        idTermin: _pembayaranTermin[index].idTermin,
+        nofakturJual: _pembayaranTermin[index].nofakturJual,
+        jenisTermin: _pembayaranTermin[index].jenisTermin,
+        jumlah: _pembayaranTermin[index].jumlah,
+        tanggalBayar: tanggalBayar ?? _pembayaranTermin[index].tanggalBayar,
+        status: status,
+        catatan: catatan ?? _pembayaranTermin[index].catatan,
+      );
+      notifyListeners();
+    }
+  }
+
+  bool isAllTerminPaid() {
+    return _pembayaranTermin.every((t) => t.status == 'Dibayar');
+  }
+
+  double getTotalTerminPaid() {
+    return _pembayaranTermin
+        .where((t) => t.status == 'Dibayar')
+        .fold(0, (sum, t) => sum + t.jumlah);
   }
 }

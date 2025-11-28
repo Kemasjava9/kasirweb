@@ -121,7 +121,12 @@ class _PenjualanFormPageState extends State<PenjualanFormPage> {
                   value: _provider.selectedStatusPembayaran,
                   decoration: const InputDecoration(labelText: 'Status Pembayaran'),
                   items: _statusPembayaranOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                  onChanged: (v) => _provider.selectedStatusPembayaran = v,
+                  onChanged: (v) {
+                    _provider.selectedStatusPembayaran = v;
+                    if (v == 'Belum Lunas') {
+                      _provider.setupPembayaranTermin(_provider.totalBelanja);
+                    }
+                  },
                   validator: (v) => v == null ? 'Pilih status pembayaran' : null,
                 ),
                 const SizedBox(height: 12),
@@ -157,6 +162,18 @@ class _PenjualanFormPageState extends State<PenjualanFormPage> {
     );
   }
 
+  Future<void> _selectDate(BuildContext context, PenjualanProvider provider) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: provider.selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null && picked != provider.selectedDate) {
+      provider.selectedDate = picked;
+    }
+  }
+
   void _showAddItemDialog(PenjualanProvider provider) {
     Barang? selectedBarang;
     String? selectedSatuan;
@@ -186,10 +203,7 @@ class _PenjualanFormPageState extends State<PenjualanFormPage> {
                   DropdownButtonFormField<String>(
                     value: selectedSatuan,
                     decoration: const InputDecoration(labelText: 'Pilih Satuan'),
-                    items: [
-                      DropdownMenuItem(value: selectedBarang!.satuanPcs, child: Text('${selectedBarang!.satuanPcs}')), 
-                      DropdownMenuItem(value: selectedBarang!.satuanDus, child: Text('${selectedBarang!.satuanDus}')),
-                    ],
+                    items: [selectedBarang!.satuanPcs, selectedBarang!.satuanDus].toSet().map((s) => DropdownMenuItem<String>(value: s, child: Text(s))).toList(),
                     onChanged: (v) => setState(() => selectedSatuan = v),
                   ),
                 ],
@@ -253,12 +267,32 @@ class _PenjualanFormPageState extends State<PenjualanFormPage> {
                         children: [
                           const Text('Detail Pesanan', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            value: provider.selectedPelanggan,
-                            decoration: const InputDecoration(labelText: 'Pelanggan'),
-                            items: provider.pelangganList.map((p) => DropdownMenuItem(value: p.kodePelanggan, child: Text(p.namaPelanggan))).toList(),
-                            onChanged: (v) => provider.selectedPelanggan = v,
-                            validator: (v) => v == null ? 'Pilih pelanggan' : null,
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 1,
+                                child: TextFormField(
+                                  controller: TextEditingController(text: DateFormat('dd/MM/yyyy', 'id').format(provider.selectedDate)),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Tanggal',
+                                    suffixIcon: Icon(Icons.calendar_today),
+                                  ),
+                                  readOnly: true,
+                                  onTap: () => _selectDate(context, provider),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 2,
+                                child: DropdownButtonFormField<String>(
+                                  value: provider.selectedPelanggan,
+                                  decoration: const InputDecoration(labelText: 'Pelanggan'),
+                                  items: provider.pelangganList.map((p) => DropdownMenuItem(value: p.kodePelanggan, child: Text(p.namaPelanggan))).toList(),
+                                  onChanged: (v) => provider.selectedPelanggan = v,
+                                  validator: (v) => v == null ? 'Pilih pelanggan' : null,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           Row(
