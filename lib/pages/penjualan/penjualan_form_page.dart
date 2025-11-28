@@ -123,9 +123,6 @@ class _PenjualanFormPageState extends State<PenjualanFormPage> {
                   items: _statusPembayaranOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                   onChanged: (v) {
                     _provider.selectedStatusPembayaran = v;
-                    if (v == 'Belum Lunas') {
-                      _provider.setupPembayaranTermin(_provider.totalBelanja);
-                    }
                   },
                   validator: (v) => v == null ? 'Pilih status pembayaran' : null,
                 ),
