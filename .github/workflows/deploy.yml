@@ -29,7 +29,7 @@ jobs:
 
       # Build Flutter Web (Release Mode)
       - name: Build Flutter Web
-        run: flutter build web --release
+        run: flutter build web --release --no-wasm-dry-run
 
       # Build APK (Release Mode)
       - name: Build APK
