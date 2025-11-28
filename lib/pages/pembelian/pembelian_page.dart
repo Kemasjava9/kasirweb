@@ -510,7 +510,7 @@ class _PembelianPageState extends State<PembelianPage> {
       final detailSnapshot = await _firestore.collection('detail_pembelian').where('id_beli', isEqualTo: idBeli).get();
       final items = detailSnapshot.docs.map((d) => d.data()).toList();
 
-      final bytes = await PembelianPrintFormat.buildPembelianPdf(data, items.cast<Map<String, dynamic>>(), _barangList);
+      final bytes = await PembelianPrintFormat.buildPembelianPdf(data, items.cast<Map<String, dynamic>>(), _barangList, _supplierList);
       await Printing.layoutPdf(onLayout: (format) async => bytes);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error mencetak pembelian: $e')));
