@@ -20,6 +20,7 @@ class PenjualanProvider extends ChangeNotifier {
   String? _selectedKomisi;
   String? _selectedMetodePembayaran;
   String? _selectedStatusPembayaran;
+  DateTime _selectedDate = DateTime.now();
   final List<DetailPenjualan> _cartItems = [];
   double _totalBelanja = 0;
 
@@ -37,6 +38,7 @@ class PenjualanProvider extends ChangeNotifier {
   String? get selectedKomisi => _selectedKomisi;
   String? get selectedMetodePembayaran => _selectedMetodePembayaran;
   String? get selectedStatusPembayaran => _selectedStatusPembayaran;
+  DateTime get selectedDate => _selectedDate;
   List<DetailPenjualan> get cartItems => _cartItems;
   double get totalBelanja => _totalBelanja;
 
@@ -63,6 +65,11 @@ class PenjualanProvider extends ChangeNotifier {
 
   set selectedStatusPembayaran(String? value) {
     _selectedStatusPembayaran = value;
+    notifyListeners();
+  }
+
+  set selectedDate(DateTime value) {
+    _selectedDate = value;
     notifyListeners();
   }
 
@@ -166,10 +173,9 @@ class PenjualanProvider extends ChangeNotifier {
       return null;
     }
 
-    final now = DateTime.now();
     return {
       'pelanggan': _selectedPelanggan,
-      'tanggal': now,
+      'tanggal': _selectedDate,
       'cara_bayar': _selectedMetodePembayaran,
       'status_pembayaran': _selectedStatusPembayaran,
       'items': _cartItems.map((e) => e.toMap()).toList(),
@@ -193,4 +199,6 @@ class PenjualanProvider extends ChangeNotifier {
     _totalBelanja = _cartItems.fold<double>(0, (sum, item) => sum + item.subtotal) - diskon + ongkosKirim + biayaLain;
     notifyListeners();
   }
+
+
 }
