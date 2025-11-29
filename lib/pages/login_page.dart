@@ -153,7 +153,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _downloadApp() async {
-    const url = 'https://github.com/Kemasjava9/kasirweb/raw/gh-pages/app-release.apk';
+    const url = 'output/app-realese.apk';
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
@@ -381,5 +381,4 @@ class _LoginPageState extends State<LoginPage> {
     _passwordController.dispose();
     super.dispose();
   }
-
 }

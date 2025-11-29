@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../models/models.dart' hide DetailPenjualan;
+import '../../models/models.dart';
 import '../../models/penjualan_models.dart';
 import '../../services/firestore_service.dart';
-import '../../widgets/loading_overlay.dart';
 import '../../utils/dialog_helper.dart';
-import 'widgets/penjualan_widgets.dart';
 
 class PenjualanProvider extends ChangeNotifier {
   final FirestoreService _firestoreService;

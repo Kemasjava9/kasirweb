@@ -1,277 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../export/export_page.dart';
+import 'pembeliansupplier.dart';
+import 'laporanpenjualan.dart';
+import 'dataprodukterlaris.dart';
+import 'lababersih.dart';
+import 'laporankas.dart';
+import 'laporankomisi.dart';
+import 'ringkasanproduk.dart';
 
-class LaporanPage extends StatefulWidget {
+class LaporanPage extends StatelessWidget {
   const LaporanPage({super.key});
-
-  @override
-  State<LaporanPage> createState() => _LaporanPageState();
-}
-
-class _LaporanPageState extends State<LaporanPage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  bool _isLoading = false;
-  String _currentReport = '';
-
-  void _setLoading(String reportType, bool loading) {
-    setState(() {
-      _isLoading = loading;
-      _currentReport = loading ? reportType : '';
-    });
-  }
-
-  Future<void> _generateLaporanPenjualan() async {
-    _setLoading('penjualan', true);
-    try {
-      // Get penjualan data for the last 30 days
-      final now = DateTime.now();
-      final thirtyDaysAgo = now.subtract(const Duration(days: 30));
-
-      final querySnapshot = await _firestore
-          .collection('penjualan')
-          .where('tanggal', isGreaterThanOrEqualTo: thirtyDaysAgo)
-          .orderBy('tanggal', descending: true)
-          .get();
-
-      double totalPenjualan = 0;
-      int totalTransaksi = querySnapshot.docs.length;
-
-      for (var doc in querySnapshot.docs) {
-        totalPenjualan += (doc.data()['grand_total'] ?? 0).toDouble();
-      }
-
-      if (!mounted) return;
-
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Laporan Penjualan (30 Hari Terakhir)'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Total Transaksi: $totalTransaksi'),
-              Text('Total Penjualan: Rp ${totalPenjualan.toStringAsFixed(0)}'),
-              const SizedBox(height: 16),
-              const Text('Untuk export detail, gunakan menu Export Data.'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Tutup'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ExportPage()),
-                );
-              },
-              child: const Text('Export Data'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
-      _setLoading('penjualan', false);
-    }
-  }
-
-  Future<void> _generateLaporanPembelian() async {
-    _setLoading('pembelian', true);
-    try {
-      // Get pembelian data for the last 30 days
-      final now = DateTime.now();
-      final thirtyDaysAgo = now.subtract(const Duration(days: 30));
-
-      final querySnapshot = await _firestore
-          .collection('pembelian')
-          .where('tanggal', isGreaterThanOrEqualTo: thirtyDaysAgo)
-          .orderBy('tanggal', descending: true)
-          .get();
-
-      double totalPembelian = 0;
-      int totalTransaksi = querySnapshot.docs.length;
-
-      for (var doc in querySnapshot.docs) {
-        totalPembelian += (doc.data()['total'] ?? 0).toDouble();
-      }
-
-      if (!mounted) return;
-
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Laporan Pembelian (30 Hari Terakhir)'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Total Transaksi: $totalTransaksi'),
-              Text('Total Pembelian: Rp ${totalPembelian.toStringAsFixed(0)}'),
-              const SizedBox(height: 16),
-              const Text('Untuk export detail, gunakan menu Export Data.'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Tutup'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ExportPage()),
-                );
-              },
-              child: const Text('Export Data'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
-      _setLoading('pembelian', false);
-    }
-  }
-
-  Future<void> _generateLaporanStok() async {
-    _setLoading('stok', true);
-    try {
-      final querySnapshot = await _firestore.collection('barang').get();
-
-      int totalBarang = querySnapshot.docs.length;
-      int totalStok = 0;
-      int barangHabis = 0;
-
-      for (var doc in querySnapshot.docs) {
-        final jumlah = (doc.data()['jumlah'] ?? 0) as int;
-        totalStok += jumlah;
-        if (jumlah == 0) barangHabis++;
-      }
-
-      if (!mounted) return;
-
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Laporan Stok Barang'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Total Jenis Barang: $totalBarang'),
-              Text('Total Stok Keseluruhan: $totalStok'),
-              Text('Barang Habis: $barangHabis'),
-              const SizedBox(height: 16),
-              const Text('Untuk export detail, gunakan menu Export Data.'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Tutup'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ExportPage()),
-                );
-              },
-              child: const Text('Export Data'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
-      _setLoading('stok', false);
-    }
-  }
-
-  Widget _buildReportCard({
-    required String title,
-    required String description,
-    required VoidCallback onGenerate,
-    required String type,
-  }) {
-    final bool isLoading = _isLoading && _currentReport == type;
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: const TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _isLoading ? null : onGenerate,
-              icon: isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Icon(Icons.analytics),
-              label: Text(isLoading ? 'Memuat...' : 'Generate Laporan'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -287,80 +24,214 @@ class _LaporanPageState extends State<LaporanPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Laporan',
+              'Pilih Jenis Laporan',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
+                color: Colors.blueGrey,
               ),
             ),
             const SizedBox(height: 24),
 
-            _buildReportCard(
+            // Pembelian Supplier Report
+            _buildReportButton(
+              context,
+              title: 'Laporan Pembelian Supplier',
+              description: 'Detail pembelian berdasarkan supplier dengan informasi lengkap',
+              icon: Icons.shopping_cart,
+              color: Colors.blue,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Pembelian Supplier'),
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  body: PembelianSupplierWidget(),
+                )),
+              ),
+            ),
+
+            // Penjualan Report
+            _buildReportButton(
+              context,
               title: 'Laporan Penjualan',
-              description: 'Laporan penjualan 30 hari terakhir dengan ringkasan total transaksi dan nilai penjualan.',
-              onGenerate: _generateLaporanPenjualan,
-              type: 'penjualan',
-            ),
-
-            _buildReportCard(
-              title: 'Laporan Pembelian',
-              description: 'Laporan pembelian 30 hari terakhir dengan ringkasan total transaksi dan nilai pembelian.',
-              onGenerate: _generateLaporanPembelian,
-              type: 'pembelian',
-            ),
-
-            _buildReportCard(
-              title: 'Laporan Stok Barang',
-              description: 'Laporan stok barang saat ini dengan total jenis barang, total stok, dan barang habis.',
-              onGenerate: _generateLaporanStok,
-              type: 'stok',
-            ),
-
-            const SizedBox(height: 24),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
+              description: 'Detail penjualan dengan laba dan informasi lengkap',
+              icon: Icons.sell,
+              color: Colors.green,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Laporan Penjualan'),
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  body: SalesDetailWidget(),
+                )),
               ),
+            ),
+
+            // Produk Terlaris Report
+            _buildReportButton(
+              context,
+              title: 'Produk Terlaris',
+              description: '10 produk terlaris berdasarkan jumlah penjualan',
+              icon: Icons.trending_up,
+              color: Colors.orange,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Produk Terlaris'),
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
+                  body: ProdukTerlarisWidget(),
+                )),
+              ),
+            ),
+
+            // Laba Bersih Report
+            _buildReportButton(
+              context,
+              title: 'Laporan Laba Bersih',
+              description: 'Perhitungan laba bersih dari penjualan dan pembelian',
+              icon: Icons.account_balance_wallet,
+              color: Colors.purple,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Laba Bersih'),
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                  ),
+                  body: LabaBersihWidget(),
+                )),
+              ),
+            ),
+
+            // Laporan Kas
+            _buildReportButton(
+              context,
+              title: 'Laporan Kas',
+              description: 'Arus kas masuk dan keluar dengan saldo akhir',
+              icon: Icons.account_balance,
+              color: Colors.teal,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LaporanKas()),
+              ),
+            ),
+
+            // Komisi Report
+            _buildReportButton(
+              context,
+              title: 'Laporan Komisi',
+              description: 'Detail komisi penjualan berdasarkan produk',
+              icon: Icons.people,
+              color: Colors.indigo,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Laporan Komisi'),
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                  ),
+                  body: CommissionReportWidget(),
+                )),
+              ),
+            ),
+
+            // Ringkasan Produk
+            _buildReportButton(
+              context,
+              title: 'Ringkasan Produk',
+              description: 'Ringkasan stok produk, nilai HPP, dan piutang',
+              icon: Icons.inventory,
+              color: Colors.brown,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Ringkasan Produk'),
+                    backgroundColor: Colors.brown,
+                    foregroundColor: Colors.white,
+                  ),
+                  body: RingkasanProdukWidget(),
+                )),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReportButton(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: color,
+          elevation: 4,
+          padding: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: color.withOpacity(0.3), width: 1),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 32, color: color),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Export Data Lengkap',
+                  Text(
+                    title,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                      color: color,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
-                    'Untuk mendapatkan data lengkap dalam format Excel, gunakan menu Export Data.',
-                    style: TextStyle(color: Colors.blue.shade700),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const ExportPage()),
-                        );
-                      },
-                      icon: const Icon(Icons.file_download, color: Colors.blue),
-                      label: const Text('Buka Export Data', style: TextStyle(color: Colors.blue)),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.blue),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
+                    description,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
                     ),
                   ),
                 ],
               ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: color,
+              size: 20,
             ),
           ],
         ),

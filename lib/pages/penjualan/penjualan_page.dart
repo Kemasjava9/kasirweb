@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../../models/models.dart' hide DetailPenjualan;
+import '../../models/models.dart';
 import '../../models/penjualan_models.dart';
 import '../../utils/code_generator.dart';
 import 'penjualan_form_page.dart';
