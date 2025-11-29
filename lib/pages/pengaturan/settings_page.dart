@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'users_page.dart';
 import 'sales_page.dart';
 import 'komisi_page.dart';
-import '../export/export_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -69,21 +68,7 @@ class SettingsPage extends StatelessWidget {
                 textStyle: const TextStyle(fontSize: 18),
               ),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ExportPage()),
-                );
-              },
-              icon: const Icon(Icons.file_download),
-              label: const Text('Export Data'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16),
-                textStyle: const TextStyle(fontSize: 18),
-              ),
-            ),
+
           ],
         ),
       ),
