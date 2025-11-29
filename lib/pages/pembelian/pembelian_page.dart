@@ -172,7 +172,7 @@ class _PembelianPageState extends State<PembelianPage> {
 
                                       return ListTile(
                                         title: Text('${barang.namaBarang} (${kode})'),
-                                        subtitle: Text('$jumlah • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(hargaSatuan)}'),
+                                        subtitle: Text('${NumberFormat('#,###').format(jumlah)} • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
                                         trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(subtotal)),
                                       );
                                     }).toList(),
@@ -361,7 +361,7 @@ class _PembelianPageState extends State<PembelianPage> {
                         final barang = _barangList.firstWhere((b) => b.kodeBarang == kode, orElse: () => Barang(kodeBarang: kode, namaBarang: kode, satuanPcs: 'pcs', satuanDus: 'dus', isiDus: 1, hargaPcs: item['harga_satuan']?.toDouble() ?? 0.0, hargaDus: item['harga_satuan']?.toDouble() ?? 0.0, jumlah: 0, hpp: 0.0, hppDus: 0.0));
                         return ListTile(
                           title: Text('${barang.namaBarang} (${kode})'),
-                          subtitle: Text('${item['jumlah']} x ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(item['harga_satuan'])}'),
+                          subtitle: Text('${NumberFormat('#,###').format(item['jumlah'])} x ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(item['harga_satuan'])}'),
                           trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(item['subtotal'] ?? 0)),
                         );
                       }).toList(),

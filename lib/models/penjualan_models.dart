@@ -63,6 +63,8 @@ class Penjualan {
   }
 }
 
+
+
 class DetailPenjualan {
   final String idDetailJual;
   final String nofakturJual;

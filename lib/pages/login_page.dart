@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart'; // Import url_launcher untuk membuka URL
+import 'package:url_launcher/url_launcher.dart';
 import 'dashboard.dart';
 
 class LoginPage extends StatefulWidget {
@@ -151,13 +152,13 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Function to launch the APK download link
-  void _launchURL() async {
-    const url = 'https://github.com/Kemasjava9/kasirweb/raw/gh-pages/app-release.apk'; // Replace with your actual APK URL
-    if (await canLaunch(url)) {
-      await launch(url);
+  Future<void> _downloadApp() async {
+    const url = 'output/app-realese.apk';
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
     } else {
-      _showErrorDialog('Gagal membuka URL untuk mendownload APK');
+      _showErrorDialog('Tidak dapat membuka URL download.');
     }
   }
 
@@ -366,12 +367,10 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
-      
-      // Add Floating Action Button
       floatingActionButton: FloatingActionButton(
-        onPressed: _launchURL,  // Function to launch APK URL
+        onPressed: _downloadApp,
+        tooltip: 'Download App',
         child: const Icon(Icons.download),
-        backgroundColor: Colors.blue,
       ),
     );
   }
@@ -383,6 +382,3 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 }
-
-
-

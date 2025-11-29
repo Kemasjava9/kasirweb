@@ -94,6 +94,30 @@ class _PenjualanPageState extends State<PenjualanPage> {
                                     .format((data['total_jual'] ?? 0).toDouble()),
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
+                              if (data['status'] == 'Belum Lunas') ...[
+                                FutureBuilder<double>(
+                                  future: _getTotalTerminPaid(data),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return const Text(
+                                        'Dibayar: Loading...',
+                                        style: TextStyle(color: Colors.orange, fontSize: 12),
+                                      );
+                                    }
+                                    if (snapshot.hasError) {
+                                      return const Text(
+                                        'Dibayar: Error',
+                                        style: TextStyle(color: Colors.orange, fontSize: 12),
+                                      );
+                                    }
+                                    final totalPaid = snapshot.data ?? 0;
+                                    return Text(
+                                      'Dibayar: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(totalPaid)}',
+                                      style: const TextStyle(color: Colors.orange, fontSize: 12),
+                                    );
+                                  },
+                                ),
+                              ],
                             ],
                           ),
                           trailing: Row(
@@ -164,7 +188,7 @@ class _PenjualanPageState extends State<PenjualanPage> {
 
                                       return ListTile(
                                         title: Text('${barang.namaBarang} (${kode})'),
-                                        subtitle: Text('$jumlah $satuan • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
+                                        subtitle: Text('${NumberFormat('#,###').format(jumlah)} $satuan • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
                                         trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(subtotal)),
                                       );
                                     }).toList(),
@@ -799,6 +823,23 @@ class _PenjualanPageState extends State<PenjualanPage> {
       debugPrint('Error deleting penjualan $nofaktur: $e');
       debugPrintStack(stackTrace: st);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error menghapus penjualan: $e')));
+    }
+  }
+
+  Future<double> _getTotalTerminPaid(Map<String, dynamic> data) async {
+    final nofaktur = data['nofaktur_jual']?.toString() ?? '';
+    try {
+      final terminSnapshot = await _firestore.collection('pembayaran_termin').where('nofaktur_jual', isEqualTo: nofaktur).get();
+      double totalPaid = 0;
+      for (var doc in terminSnapshot.docs) {
+        final terminData = doc.data();
+        if (terminData['status'] == 'Dibayar') {
+          totalPaid += (terminData['jumlah'] ?? 0).toDouble();
+        }
+      }
+      return totalPaid;
+    } catch (e) {
+      return 0;
     }
   }
 
