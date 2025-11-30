@@ -3,7 +3,6 @@ import 'pembeliansupplier.dart';
 import 'laporanpenjualan.dart';
 import 'dataprodukterlaris.dart';
 import 'lababersih.dart';
-import 'laporankas.dart';
 import 'laporankomisi.dart';
 import 'ringkasanproduk.dart';
 
@@ -112,20 +111,6 @@ class LaporanPage extends StatelessWidget {
                 )),
               ),
             ),
-
-            // Laporan Kas
-            _buildReportButton(
-              context,
-              title: 'Laporan Kas',
-              description: 'Arus kas masuk dan keluar dengan saldo akhir',
-              icon: Icons.account_balance,
-              color: Colors.teal,
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => LaporanKas()),
-              ),
-            ),
-
             // Komisi Report
             _buildReportButton(
               context,

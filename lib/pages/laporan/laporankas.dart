@@ -8,6 +8,7 @@ import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:universal_html/html.dart' as html;
+import '../../utils/date_utils.dart';
 
 class LaporanKas extends StatefulWidget {
   const LaporanKas({super.key});
@@ -20,8 +21,6 @@ class _LaporanKasState extends State<LaporanKas> {
   List<Map<String, dynamic>> _cashFlowData = [];
   bool _isLoading = true;
   String? _errorMessage;
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
-  DateTime _endDate = DateTime.now();
 
   @override
   void initState() {
@@ -29,29 +28,9 @@ class _LaporanKasState extends State<LaporanKas> {
     _loadCashFlowData();
   }
 
-  Future<void> _selectDateRange(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-        _isLoading = true;
-      });
-      _loadCashFlowData();
-    }
-  }
-
   Future<void> _loadCashFlowData() async {
     try {
-      final data = await LaporanDb.getLaporanKas(
-        startDate: DateFormat('dd-MM-yyyy').format(_startDate),
-        endDate: DateFormat('dd-MM-yyyy').format(_endDate),
-      );
+      final data = await LaporanDb.getLaporanKas();
       setState(() {
         _cashFlowData = data;
         _isLoading = false;
@@ -61,24 +40,6 @@ class _LaporanKasState extends State<LaporanKas> {
         _errorMessage = 'Gagal memuat data: ${e.toString()}';
         _isLoading = false;
       });
-    }
-  }
-
-  DateTime _parseDate(String dateString) {
-    try {
-      // Try parsing as ISO format first
-      if (dateString.contains('-')) {
-        return DateTime.parse(dateString);
-      }
-      // Try parsing as dd-MM-yyyy format
-      else if (dateString.contains('-')) {
-        final parts = dateString.split('-');
-        return DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
-      }
-      // Fallback to current date if parsing fails
-      return DateTime.now();
-    } catch (e) {
-      return DateTime.now(); // Fallback to current date if parsing fails
     }
   }
 
@@ -144,25 +105,6 @@ class _LaporanKasState extends State<LaporanKas> {
 
     return Column(
       children: [
-        // Date Picker Row
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Periode: ${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _selectDateRange(context),
-                icon: const Icon(Icons.calendar_today),
-                label: const Text('Pilih Tanggal'),
-              ),
-            ],
-          ),
-        ),
         // Summary cards
         Padding(
           padding: const EdgeInsets.all(8.0),
@@ -278,7 +220,6 @@ class _LaporanKasState extends State<LaporanKas> {
             itemCount: data.length,
             itemBuilder: (context, index) {
               final item = data[index];
-              final date = _parseDate(item['tanggal'].toString());
 
               return Card(
                 margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -288,7 +229,7 @@ class _LaporanKasState extends State<LaporanKas> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    "${DateFormat('dd/MM/yyyy').format(date)} • ${item['kategori']?.toString() ?? 'Uncategorized'}",
+                    "${formatFlexibleDate(item['tanggal'], 'dd/MM/yyyy')} • ${item['kategori']?.toString() ?? 'Uncategorized'}",
                   ),
                   trailing: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -336,7 +277,7 @@ class _LaporanKasState extends State<LaporanKas> {
       List<List<String>> csvData = [
         ['Tanggal', 'Keterangan', 'Kategori', 'Jumlah', 'Jenis'], // Headers
         ..._cashFlowData.map((item) => [
-          _parseDate(item['tanggal'].toString()).toString(),
+          formatFlexibleDate(item['tanggal'], 'dd/MM/yyyy'),
           item['keterangan']?.toString() ?? '',
           item['kategori']?.toString() ?? '',
           item['jumlah']?.toString() ?? '0',

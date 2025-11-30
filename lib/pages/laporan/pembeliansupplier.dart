@@ -9,6 +9,9 @@ import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:universal_html/html.dart' as html;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/models.dart';
+import '../../models/pembelian_models.dart';
 
 class PembelianSupplierWidget extends StatefulWidget {
   const PembelianSupplierWidget({super.key});
@@ -23,32 +26,12 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
   String _searchQuery = '';
   bool _isLoading = true;
   String? _errorMessage;
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
-  DateTime _endDate = DateTime.now();
   double _totalPembelian = 0.0; // Variabel untuk menyimpan total pembelian
 
   @override
   void initState() {
     super.initState();
     _loadPurchaseData();
-  }
-
-  Future<void> _selectDateRange(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-        _isLoading = true;
-        _totalPembelian = 0.0; // Reset total saat ganti tanggal
-      });
-      _loadPurchaseData();
-    }
   }
 
   // Fungsi untuk menghitung total pembelian
@@ -66,10 +49,7 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
 
   Future<void> _loadPurchaseData() async {
     try {
-      final data = await LaporanDb.getPurchasesBySupplier(
-        startDate: DateFormat('yyyy-MM-dd').format(_startDate),
-        endDate: DateFormat('yyyy-MM-dd').format(_endDate),
-      );
+      final data = await LaporanDb.getPurchasesBySupplier();
       setState(() {
         _allPurchases = data;
         _filteredPurchases = data;
@@ -119,26 +99,6 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date Picker Row
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Periode: ${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _selectDateRange(context),
-                    icon: const Icon(Icons.calendar_today),
-                    label: const Text('Pilih Tanggal'),
-                  ),
-                ],
-              ),
-            ),
-
             // Total Pembelian Card
             Card(
               color: Colors.orange[50],
@@ -274,74 +234,20 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
               ),
             ),
 
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columnSpacing: 20,
-                columns: const [
-                  DataColumn(label: Text('Supplier', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Barang', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                    label: Text('Harga', style: TextStyle(fontWeight: FontWeight.bold)),
-                    numeric: true,
-                  ),
-                  DataColumn(
-                    label: Text('Jumlah', style: TextStyle(fontWeight: FontWeight.bold)),
-                    numeric: true,
-                  ),
-                  DataColumn(
-                    label: Text('Subtotal', style: TextStyle(fontWeight: FontWeight.bold)),
-                    numeric: true,
-                  ),
-                  DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Tanggal', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Jatuh Tempo', style: TextStyle(fontWeight: FontWeight.bold))),
-                ],
-                rows: _filteredPurchases.map((purchase) {
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(purchase['nama_supplier']?.toString() ?? '-')),
-                      DataCell(Text(purchase['nama_barang']?.toString() ?? '-')),
-                      DataCell(Text(
-                        _formatCurrency(purchase['harga_satuan'] ?? 0),
-                        textAlign: TextAlign.right,
-                      )),
-                      DataCell(Text(
-                        purchase['jumlah']?.toString() ?? '0',
-                        textAlign: TextAlign.right,
-                      )),
-                      DataCell(Text(
-                        _formatCurrency(purchase['subtotal'] ?? 0),
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      )),
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(purchase['status']),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            purchase['status']?.toString().toUpperCase() ?? '-',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      DataCell(Text(
-                        _formatDate(purchase['tanggal_beli']),
-                      )),
-                      DataCell(Text(
-                        _formatDate(purchase['jatuh_tempo']),
-                      )),
-                    ],
-                  );
-                }).toList(),
-              ),
+            Column(
+              children: _filteredPurchases.map((purchase) {
+                final namaBarang = purchase['nama_barang']?.toString() ?? '';
+                final namaSupplier = purchase['nama_supplier']?.toString() ?? '';
+                final jumlah = NumberFormat('#,###').format(purchase['jumlah'] ?? 0);
+                final hargaSatuan = (purchase['harga_satuan'] ?? 0).toDouble();
+                final subtotal = (purchase['subtotal'] ?? 0).toDouble();
+
+                return ListTile(
+                  title: Text('$namaBarang ($namaSupplier)'),
+                  subtitle: Text('$jumlah • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
+                  trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(subtotal)),
+                );
+              }).toList(),
             ),
           ],
         ),
@@ -371,10 +277,9 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
     final safeValue = value ?? 0;
     final formatter = NumberFormat.currency(
       locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 1,
+      decimalDigits: 0,
     );
-    return formatter.format(safeValue.toDouble());
+    return formatter.format(safeValue.toDouble()).replaceFirst('IDR', 'Rp');
   }
 
   Future<void> _exportToCSV() async {

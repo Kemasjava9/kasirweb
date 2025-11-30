@@ -6,6 +6,9 @@ import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:open_file/open_file.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'package:universal_html/html.dart' as html;
 
 class SalesDetailWidget extends StatefulWidget {
   const SalesDetailWidget({super.key});
@@ -20,9 +23,7 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
   String _searchQuery = '';
   bool _isLoading = true;
   String? _errorMessage;
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
-  DateTime _endDate = DateTime.now();
-  double _totalPenjualan = 0.0; // Variabel untuk menyimpan total penjualan
+  double _totalPenjualan = 0.0;
 
   @override
   void initState() {
@@ -30,33 +31,10 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
     _loadSalesData();
   }
 
-  Future<void> _selectDateRange(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-        _isLoading = true;
-        _totalPenjualan = 0.0; // Reset total saat ganti tanggal
-      });
-      _loadSalesData();
-    }
-  }
-
-  // Fungsi untuk menghitung total penjualan
   void _calculateTotalPenjualan() {
     double total = 0.0;
-    for (var sale in _filteredSalesData) {
-      // Hitung subtotal untuk setiap item: harga * qty
-      double harga = (sale['Harga Satuan'] ?? 0).toDouble();
-      double qty = (sale['Jumlah_Converted'] ?? 0).toDouble();
-      double subtotal = harga * qty;
-      total += subtotal;
+    if (_salesData.isNotEmpty && _salesData.first.containsKey('is_summary')) {
+      total = (_salesData.first['total_penjualan'] as num?)?.toDouble() ?? 0.0;
     }
     setState(() {
       _totalPenjualan = total;
@@ -65,16 +43,17 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
 
   Future<void> _loadSalesData() async {
     try {
-      final data = await LaporanDb.getsalesbynofaktur(
-        startDate: DateFormat('yyyy-MM-dd').format(_startDate),
-        endDate: DateFormat('yyyy-MM-dd').format(_endDate),
-      );
+      final data = await LaporanDb.getSalesByInvoice();
       setState(() {
         _salesData = data;
-        _filteredSalesData = data;
+        if (data.isNotEmpty && data.first['is_summary'] == true) {
+          _filteredSalesData = data.sublist(1);
+        } else {
+          _filteredSalesData = data;
+        }
         _isLoading = false;
       });
-      _calculateTotalPenjualan(); // Hitung total setelah data dimuat
+      _calculateTotalPenjualan();
     } catch (e) {
       setState(() {
         _errorMessage = 'Gagal memuat data: ${e.toString()}';
@@ -87,22 +66,36 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
   void _filterSales(String query) {
     setState(() {
       _searchQuery = query;
+      List<Map<String, dynamic>> dataOnly = _salesData.isNotEmpty && _salesData.first['is_summary'] == true
+          ? _salesData.sublist(1)
+          : _salesData;
+
       if (query.isEmpty) {
-        _filteredSalesData = _salesData;
+        _filteredSalesData = dataOnly;
       } else {
-        _filteredSalesData = _salesData.where((sale) {
+        _filteredSalesData = dataOnly.where((sale) {
           final noFaktur = sale['No Faktur']?.toString().toLowerCase() ?? '';
           final pelanggan = sale['Nama Pelanggan']?.toString().toLowerCase() ?? '';
           final sales = sale['Nama Sales']?.toString().toLowerCase() ?? '';
-          final barang = sale['Nama Barang']?.toString().toLowerCase() ?? '';
+
+          bool itemsMatch = false;
+          if (sale['items'] is List) {
+            for (var item in sale['items']) {
+              final barang = item['Nama Barang']?.toString().toLowerCase() ?? '';
+              if (barang.contains(query.toLowerCase())) {
+                itemsMatch = true;
+                break;
+              }
+            }
+          }
+
           return noFaktur.contains(query.toLowerCase()) ||
                  pelanggan.contains(query.toLowerCase()) ||
                  sales.contains(query.toLowerCase()) ||
-                 barang.contains(query.toLowerCase());
+                 itemsMatch;
         }).toList();
       }
     });
-    _calculateTotalPenjualan(); // Hitung ulang total setelah filter
   }
 
   Future<void> _refreshData() async {
@@ -122,27 +115,6 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date Picker Row
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Periode: ${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _selectDateRange(context),
-                    icon: const Icon(Icons.calendar_today),
-                    label: const Text('Pilih Tanggal'),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Total Penjualan Card
             Card(
               color: Colors.blue[50],
               child: Padding(
@@ -170,9 +142,7 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
                 ),
               ),
             ),
-            
             const SizedBox(height: 16),
-            
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -205,7 +175,7 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildSalesTable(),
+            Expanded(child: _buildSalesTable()),
           ],
         ),
       ),
@@ -218,142 +188,81 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
     }
 
     if (_errorMessage != null) {
-      return Column(
-        children: [
-          Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-          ElevatedButton(
-            onPressed: _refreshData,
-            child: const Text('Coba Lagi'),
-          ),
-        ],
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+            ElevatedButton(
+              onPressed: _refreshData,
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
       );
     }
 
     if (_filteredSalesData.isEmpty) {
-      return Column(
-        children: [
-          Text(
-            _searchQuery.isEmpty
-                ? 'Tidak ada data penjualan'
-                : 'Tidak ditemukan penjualan dengan kata kunci "$_searchQuery"',
-          ),
-          ElevatedButton(
-            onPressed: _refreshData,
-            child: const Text('Refresh'),
-          ),
-        ],
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _searchQuery.isEmpty
+                  ? 'Tidak ada data penjualan'
+                  : 'Tidak ditemukan penjualan dengan kata kunci "$_searchQuery"',
+            ),
+            ElevatedButton(
+              onPressed: _refreshData,
+              child: const Text('Refresh'),
+            ),
+          ],
+        ),
       );
     }
 
     return RefreshIndicator(
       onRefresh: _refreshData,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: Column(
-          children: [
-            // Tambahan: Info jumlah data dan total
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Jumlah Data: ${_filteredSalesData.length}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.blueGrey,
-                    ),
-                  ),
-                ],
+      child: ListView.builder(
+        itemCount: _filteredSalesData.length,
+        itemBuilder: (context, index) {
+          final invoice = _filteredSalesData[index];
+          final items = (invoice['items'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 8.0),
+            child: ExpansionTile(
+              title: Text('Faktur: ${invoice['No Faktur']}', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('${invoice['Tanggal Jual']} - ${invoice['Nama Pelanggan']}'),
+              trailing: Text(
+                invoice['total_invoice_formatted']?.toString() ?? 'Rp 0',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16),
               ),
-            ),
-            
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columnSpacing: 20,
-                columns: const [
-                  DataColumn(label: Text('No Faktur', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Tanggal', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Pelanggan', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Sales', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Barang', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                    label: Text('Harga', style: TextStyle(fontWeight: FontWeight.bold)),
-                    numeric: true,
-                  ),
-                  DataColumn(
-                    label: Text('Qty', style: TextStyle(fontWeight: FontWeight.bold)),
-                    numeric: true,
-                  ),
-                  DataColumn(
-                    label: Text('Subtotal', style: TextStyle(fontWeight: FontWeight.bold)),
-                    numeric: true,
-                  ),
-                  DataColumn(
-                    label: Text('Laba', style: TextStyle(fontWeight: FontWeight.bold)),
-                    numeric: true,
-                  ),
-                  DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Pembayaran', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Diskon', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                    label: Text('Ongkir', style: TextStyle(fontWeight: FontWeight.bold)),
-                    numeric: true,
-                  ),
-                  DataColumn(label: Text('Satuan', style: TextStyle(fontWeight: FontWeight.bold))),
-                ],
-                rows: _filteredSalesData.map((sale) {
-                  // Hitung subtotal per baris
-                  double harga = (sale['Harga Satuan'] ?? 0).toDouble();
-                  double qty = (sale['Jumlah_Converted'] ?? 0).toDouble();
-                  double subtotal = harga * qty;
-                  
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(sale['No Faktur']?.toString() ?? '-')),
-                      DataCell(Text(_formatDate(sale['Tanggal Jual']))),
-                      DataCell(Text(sale['Nama Pelanggan']?.toString() ?? '-')),
-                      DataCell(Text(sale['Nama Sales']?.toString() ?? '-')),
-                      DataCell(Text(sale['Nama Barang']?.toString() ?? '-')),
-                      DataCell(Text(_formatCurrency(sale['Harga Satuan']))),
-                      DataCell(Text(sale['Jumlah_Converted']?.toString() ?? '0')),
-                      DataCell(
-                        Text(
-                          _formatCurrency(subtotal),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      DataCell(Text(_formatCurrency(sale['Laba']))),
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(sale['Status']),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            sale['Status']?.toString().toUpperCase() ?? '-',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      DataCell(Text(sale['Cara Bayar']?.toString() ?? '-')),
-                      DataCell(Text(_formatCurrency(sale['Diskon']))),
-                      DataCell(Text(_formatCurrency(sale['Ongkos Kirim']))),
-                      DataCell(Text(sale['Satuan']?.toString() ?? '-')),
-                    ],
+              children: [
+                ...items.map((item) {
+                  return ListTile(
+                    title: Text(item['Nama Barang']?.toString() ?? '-'),
+                    subtitle: Text('${item['Jumlah']} x ${item['Harga Satuan_formatted']}'),
+                    trailing: Text(
+                      item['Subtotal_formatted']?.toString() ?? 'Rp 0',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
                   );
                 }).toList(),
-              ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Status: ${invoice['Status']}'),
+                      Text('Sales: ${invoice['Nama Sales']}'),
+                    ],
+                  ),
+                )
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -372,26 +281,17 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
     final formatter = NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',
-      decimalDigits: 1,
+      decimalDigits: 0,
     );
     return formatter.format(safeValue.toDouble());
   }
 
-  Color _getStatusColor(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'lunas':
-        return Colors.green;
-      case 'belum lunas':
-        return Colors.orange;
-      case 'campuran':
-        return Colors.blue;
-      default:
-        return Colors.grey;
-    }
-  }
-
   Future<void> _exportToCSV() async {
-    if (_filteredSalesData.isEmpty) {
+    List<Map<String, dynamic>> dataToExport = _salesData.isNotEmpty && _salesData.first['is_summary'] == true
+        ? _salesData.sublist(1)
+        : _salesData;
+
+    if (dataToExport.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tidak ada data untuk diekspor')),
       );
@@ -399,53 +299,54 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
     }
 
     try {
-      // Prepare CSV data
       List<List<String>> csvData = [
-        ['No Faktur', 'Tanggal', 'Pelanggan', 'Sales', 'Barang', 'Harga', 'Qty', 'Subtotal', 'Laba', 'Status', 'Pembayaran', 'Diskon', 'Ongkir', 'Satuan'], // Headers
-        ..._filteredSalesData.map((sale) {
-          double harga = (sale['Harga Satuan'] ?? 0).toDouble();
-          double qty = (sale['Jumlah_Converted'] ?? 0).toDouble();
-          double subtotal = harga * qty;
-          return [
-            sale['No Faktur']?.toString() ?? '',
-            _formatDate(sale['Tanggal Jual']),
-            sale['Nama Pelanggan']?.toString() ?? '',
-            sale['Nama Sales']?.toString() ?? '',
-            sale['Nama Barang']?.toString() ?? '',
-            sale['Harga Satuan_formatted'] ?? _formatCurrency(sale['Harga Satuan']),
-            sale['Jumlah_Converted']?.toString() ?? '0',
-            _formatCurrency(subtotal),
-            sale['Laba_formatted'] ?? _formatCurrency(sale['Laba']),
-            sale['Status']?.toString() ?? '',
-            sale['Cara Bayar']?.toString() ?? '',
-            sale['Diskon_formatted'] ?? _formatCurrency(sale['Diskon']),
-            sale['Ongkos Kirim_formatted'] ?? _formatCurrency(sale['Ongkos Kirim']),
-            sale['Satuan']?.toString() ?? '',
-          ];
-        }),
+        ['No Faktur', 'Tanggal', 'Pelanggan', 'Sales', 'Status', 'Cara Bayar', 'Nama Barang', 'Harga Satuan', 'Jumlah', 'Subtotal', 'Laba', 'Satuan'],
       ];
 
-      // Convert to CSV string
-      String csv = const ListToCsvConverter().convert(csvData);
-
-      // Get directory
-      Directory? directory;
-      if (Platform.isAndroid) {
-        directory = await getExternalStorageDirectory();
-      } else {
-        directory = await getApplicationDocumentsDirectory();
+      for (var invoice in dataToExport) {
+        final items = (invoice['items'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        for (var item in items) {
+          csvData.add([
+            invoice['No Faktur']?.toString() ?? '',
+            invoice['Tanggal Jual']?.toString() ?? '',
+            invoice['Nama Pelanggan']?.toString() ?? '',
+            invoice['Nama Sales']?.toString() ?? '',
+            invoice['Status']?.toString() ?? '',
+            invoice['Cara Bayar']?.toString() ?? '',
+            item['Nama Barang']?.toString() ?? '',
+            item['Harga Satuan']?.toString() ?? '0',
+            item['Jumlah']?.toString() ?? '0',
+            item['Subtotal']?.toString() ?? '0',
+            item['Laba']?.toString() ?? '0',
+            item['Satuan']?.toString() ?? '',
+          ]);
+        }
       }
 
-      // Create file
-      String fileName = 'laporan_penjualan_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
-      File file = File('${directory!.path}/$fileName');
-      await file.writeAsString(csv);
-
-      // Open file
-      await OpenFile.open(file.path);
+      String csv = const ListToCsvConverter().convert(csvData);
+      Directory? directory;
+      if (kIsWeb) {
+        final bytes = utf8.encode(csv);
+        final blob = html.Blob([bytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', 'laporan_penjualan.csv')
+          ..click();
+        html.Url.revokeObjectUrl(url);
+      } else {
+        if (Platform.isAndroid) {
+          directory = await getExternalStorageDirectory();
+        } else {
+          directory = await getApplicationDocumentsDirectory();
+        }
+        String fileName = 'laporan_penjualan_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
+        File file = File('${directory!.path}/$fileName');
+        await file.writeAsString(csv);
+        await OpenFile.open(file.path);
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('CSV berhasil diekspor: $fileName')),
+        SnackBar(content: Text('CSV berhasil diekspor')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -17,10 +17,8 @@ class LabaBersihWidget extends StatefulWidget {
 }
 
 class _LabaBersihWidgetState extends State<LabaBersihWidget> {
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
-  DateTime _endDate = DateTime.now();
   Map<String, dynamic> _profitData = {};
-  
+
 
   static String formatRupiah(num? value) {
     final safeValue = value ?? 0; // kalau null, anggap 0
@@ -32,68 +30,27 @@ class _LabaBersihWidgetState extends State<LabaBersihWidget> {
     return formatter.format(safeValue.toDouble());
   }
 
-  Future<void> _selectDateRange(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Date Picker Row
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Periode: ${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _selectDateRange(context),
-                icon: const Icon(Icons.calendar_today),
-                label: const Text('Pilih Tanggal'),
-              ),
-            ],
-          ),
-        ),
-        // Data Display
-        FutureBuilder<Map<String, dynamic>>(
-          future: LaporanDb.calculateNetProfit(
-            startDate: DateFormat('yyyy-MM-dd').format(_startDate),
-            endDate: DateFormat('yyyy-MM-dd').format(_endDate),          ),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(
-                child: Text(
-                  'Error loading data: ${snapshot.error}',
-                  style: const TextStyle(color: Colors.red),
-                ),
-              );
-            }
-            if (snapshot.hasData) {
-              _profitData = snapshot.data!;
-            }
-            return _buildNetProfitCard(context, _profitData);
-          },
-        ),
-      ],
+    return FutureBuilder<Map<String, dynamic>>(
+      future: LaporanDb.calculateNetProfit(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error loading data: ${snapshot.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
+        }
+        if (snapshot.hasData) {
+          _profitData = snapshot.data!;
+        }
+        return _buildNetProfitCard(context, _profitData);
+      },
     );
   }
 
@@ -111,7 +68,7 @@ class _LabaBersihWidgetState extends State<LabaBersihWidget> {
               children: [
                 Expanded(
                   child: Text(
-                    'Laporan Laba Bersih Periode ${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
+                    'Laporan Laba Bersih',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,

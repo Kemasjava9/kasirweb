@@ -22,8 +22,6 @@ class _CommissionReportWidgetState extends State<CommissionReportWidget> {
   String _searchQuery = '';
   bool _isLoading = true;
   String? _errorMessage;
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
-  DateTime _endDate = DateTime.now();
 
   @override
   void initState() {
@@ -31,29 +29,9 @@ class _CommissionReportWidgetState extends State<CommissionReportWidget> {
     _loadCommissionData();
   }
 
-  Future<void> _selectDateRange(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-        _isLoading = true;
-      });
-      _loadCommissionData();
-    }
-  }
-
   Future<void> _loadCommissionData() async {
     try {
-      final data = await LaporanDb.getCommissionReport(
-        startDate: DateFormat('dd-MM-yyyy').format(_startDate),
-        endDate: DateFormat('dd-MM-yyyy').format(_endDate),
-      );
+      final data = await LaporanDb.getCommissionReport();
       setState(() {
         _commissionData = data;
         _filteredCommissionData = data;
@@ -103,25 +81,6 @@ class _CommissionReportWidgetState extends State<CommissionReportWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date Picker Row
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Periode: ${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _selectDateRange(context),
-                    icon: const Icon(Icons.calendar_today),
-                    label: const Text('Pilih Tanggal'),
-                  ),
-                ],
-              ),
-            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

@@ -1,66 +1,51 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+
+// Formats a date from various potential types (Timestamp, DateTime, String, etc.)
 String formatFlexibleDate(dynamic date, String format, {String fallback = '-'}) {
-  if (date == null) return fallback;
+  if (date == null) {
+    return fallback;
+  }
 
   try {
-    DateTime dateTime;
+    DateTime? dateTime;
 
     if (date is DateTime) {
       dateTime = date;
+    } else if (date is Timestamp) {
+      dateTime = date.toDate();
     } else if (date is String) {
-      // Try parsing various date formats
-      try {
-        // Try ISO format first
-        dateTime = DateTime.parse(date);
-      } catch (e) {
-        // Try dd/MM/yyyy format
+      // Try to parse common formats, this is flexible
+      if (date.contains('/')) {
         try {
-          final parts = date.split('/');
-          if (parts.length == 3) {
-            dateTime = DateTime(
-              int.parse(parts[2]),
-              int.parse(parts[1]),
-              int.parse(parts[0]),
-            );
-          } else {
-            throw FormatException('Invalid date format');
-          }
-        } catch (e2) {
-          // Try yyyy-MM-dd format
-          try {
-            final parts = date.split('-');
-            if (parts.length == 3) {
-              dateTime = DateTime(
-                int.parse(parts[0]),
-                int.parse(parts[1]),
-                int.parse(parts[2]),
-              );
-            } else {
-              throw FormatException('Invalid date format');
-            }
-          } catch (e3) {
-            throw FormatException('Unable to parse date: $date');
-          }
-        }
+          // Handles dd/MM/yyyy
+          dateTime = DateFormat('dd/MM/yyyy').parseStrict(date);
+        } catch (_) {}
+      } 
+      if (dateTime == null && date.contains('-')) {
+         try {
+          // Handles yyyy-MM-dd
+          dateTime = DateFormat('yyyy-MM-dd').parseStrict(date);
+        } catch (_) {}
       }
+      // Fallback for ISO 8601 or other formats DateTime can handle
+      dateTime ??= DateTime.tryParse(date);
+
     } else if (date is int) {
-      // Assume timestamp in milliseconds
+      // Assumes timestamp in milliseconds since epoch
       dateTime = DateTime.fromMillisecondsSinceEpoch(date);
-    } else {
-      return fallback;
     }
 
-    // Format the date
-    switch (format) {
-      case 'dd/MM/yyyy':
-        return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}';
-      case 'yyyy-MM-dd':
-        return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
-      case 'dd-MM-yyyy':
-        return '${dateTime.day.toString().padLeft(2, '0')}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.year}';
-      default:
-        return dateTime.toString();
+    // If a valid DateTime was obtained, format it
+    if (dateTime != null) {
+      return DateFormat(format, 'id_ID').format(dateTime);
     }
+
+    // If all parsing fails, return the original value or fallback
+    return date.toString();
+    
   } catch (e) {
+    // In case of any unexpected error during formatting, return fallback
     return fallback;
   }
 }

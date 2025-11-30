@@ -76,7 +76,7 @@ class RingkasanProdukWidget extends StatelessWidget {
     final formatter = NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',
-      decimalDigits: 1, // 👈 tampilkan 2 angka di belakang koma
+      decimalDigits: 0,
     );
     return formatter.format(value);
   }

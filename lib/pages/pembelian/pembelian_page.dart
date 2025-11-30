@@ -322,47 +322,76 @@ class _PembelianPageState extends State<PembelianPage> {
 
   void _showDetailDialog(Map<String, dynamic> data) {
     final idBeli = data['id_beli']?.toString() ?? '';
+    final kodeSupplier = data['kode_supplier']?.toString() ?? '';
+    final supplier = _supplierList.firstWhere(
+      (s) => s.kodeSupplier == kodeSupplier,
+      orElse: () => Supplier(kodeSupplier: kodeSupplier, namaSupplier: kodeSupplier, alamatSupplier: '', telpSupplier: ''),
+    );
+    final namaSupplier = supplier.namaSupplier;
+    final status = data['status']?.toString() ?? '';
+    final tanggal = data['tanggal_beli']?.toString() ?? '';
+    final jatuhTempo = data['jatuh_tempo']?.toString() ?? '';
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text('Detail Pembelian #$idBeli'),
-          content: SingleChildScrollView(
+          content: SizedBox(
+            width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('ID Beli: $idBeli'),
-                Text('Tanggal: ${data['tanggal_beli']}'),
-                Text('Supplier: ${data['kode_supplier']}'),
-                Text('Status: ${data['status']}'),
-                Text('Jatuh Tempo: ${data['jatuh_tempo'] ?? ''}'),
-                const SizedBox(height: 12),
+                Text('Tanggal: $tanggal'),
+                Text('Supplier: $namaSupplier'),
+                Text('Status: $status'),
+                Text('Jatuh Tempo: $jatuhTempo'),
+                const SizedBox(height: 16),
                 const Text('Detail Item:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
                 FutureBuilder<QuerySnapshot>(
                   future: _firestore.collection('detail_pembelian').where('id_beli', isEqualTo: idBeli).get(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
+                      return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.hasError) {
                       return Text('Error: ${snapshot.error}');
                     }
                     final details = snapshot.data?.docs ?? [];
-                    if (details.isEmpty) return const Text('Tidak ada item');
+                    if (details.isEmpty) {
+                      return const Text('Tidak ada item');
+                    }
 
                     return Column(
                       children: details.map((doc) {
                         final item = doc.data() as Map<String, dynamic>;
-                        final kode = item['kode_barang'] ?? '';
-                        final barang = _barangList.firstWhere((b) => b.kodeBarang == kode, orElse: () => Barang(kodeBarang: kode, namaBarang: kode, satuanPcs: 'pcs', satuanDus: 'dus', isiDus: 1, hargaPcs: item['harga_satuan']?.toDouble() ?? 0.0, hargaDus: item['harga_satuan']?.toDouble() ?? 0.0, jumlah: 0, hpp: 0.0, hppDus: 0.0));
+                        final kodeBarang = item['kode_barang']?.toString() ?? '';
+                        final barang = _barangList.firstWhere(
+                          (b) => b.kodeBarang == kodeBarang,
+                          orElse: () => Barang(
+                            kodeBarang: kodeBarang,
+                            namaBarang: kodeBarang,
+                            satuanPcs: 'pcs',
+                            satuanDus: 'dus',
+                            isiDus: 1,
+                            hargaPcs: 0.0,
+                            hargaDus: 0.0,
+                            jumlah: 0,
+                            hpp: 0.0,
+                            hppDus: 0.0,
+                          ),
+                        );
+                        final namaBarang = barang.namaBarang;
+                        final harga = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(item['harga_satuan'] ?? 0);
+                        final subtotal = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(item['subtotal'] ?? 0);
+
                         return ListTile(
-                          title: Text('${barang.namaBarang} (${kode})'),
-                          subtitle: Text('${NumberFormat('#,###').format(item['jumlah'])} x ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(item['harga_satuan'])}'),
-                          trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(item['subtotal'] ?? 0)),
+                          title: Text(namaBarang),
+                          subtitle: Text('Harga: $harga'),
+                          trailing: Text('Subtotal: $subtotal'),
                         );
                       }).toList(),
                     );

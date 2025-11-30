@@ -17,65 +17,21 @@ class ProdukTerlarisWidget extends StatefulWidget {
 }
 
 class _ProdukTerlarisWidgetState extends State<ProdukTerlarisWidget> {
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
-  DateTime _endDate = DateTime.now();
   List<Map<String, dynamic>> _products = [];
-
-  Future<void> _selectDateRange(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Date Picker Row
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Periode: ${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _selectDateRange(context),
-                icon: const Icon(Icons.calendar_today),
-                label: const Text('Pilih Tanggal'),
-              ),
-            ],
-          ),
-        ),
-        // Data Display
-        FutureBuilder<List<Map<String, dynamic>>>(
-          future: LaporanDb.getBestSellingProducts(
-            startDate: DateFormat('yyyy-MM-dd').format(_startDate),
-            endDate: DateFormat('yyyy-MM-dd').format(_endDate),
-          ),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasData) {
-              _products = snapshot.data!;
-            }
-            return _buildBestSellingProducts(_products);
-          },
-        ),
-      ],
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: LaporanDb.getBestSellingProducts(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasData) {
+          _products = snapshot.data!;
+        }
+        return _buildBestSellingProducts(_products);
+      },
     );
   }
 
