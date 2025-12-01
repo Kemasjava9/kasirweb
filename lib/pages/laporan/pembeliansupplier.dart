@@ -49,7 +49,9 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
 
   Future<void> _loadPurchaseData() async {
     try {
+      print('DEBUG: Loading purchase data from database...');
       final data = await LaporanDb.getPurchasesBySupplier();
+      print('DEBUG: Received ${data.length} purchase records from database');
       setState(() {
         _allPurchases = data;
         _filteredPurchases = data;
@@ -57,6 +59,7 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
       });
       _calculateTotalPembelian(); // Hitung total setelah data dimuat
     } catch (e) {
+      print('DEBUG: Error loading purchase data: $e');
       setState(() {
         _errorMessage = 'Gagal memuat data: ${e.toString()}';
         _isLoading = false;
@@ -186,7 +189,9 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
       );
     }
 
-    if (_filteredPurchases.isEmpty) {
+    final actualPurchases = _filteredPurchases.where((purchase) => purchase['is_summary'] != true).toList();
+
+    if (actualPurchases.isEmpty) {
       return Column(
         children: [
           Text(
@@ -204,49 +209,125 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
 
     return RefreshIndicator(
       onRefresh: _refreshData,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Use table layout for web or wide screens, list for mobile
+          if (kIsWeb || constraints.maxWidth > 600) {
+            return _buildTableView(actualPurchases);
+          } else {
+            return _buildListView(actualPurchases);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildListView(List<Map<String, dynamic>> purchases) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.vertical,
+      child: Column(
+        children: [
+          // Info jumlah data
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Jumlah Data: ${purchases.length}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.blueGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            children: purchases.map((purchase) {
+              final namaBarang = purchase['nama_barang']?.toString() ?? '';
+              final namaSupplier = purchase['nama_supplier']?.toString() ?? '';
+              final jumlah = NumberFormat('#,###').format(purchase['jumlah'] ?? 0);
+              final hargaSatuan = (purchase['harga_satuan'] ?? 0).toDouble();
+              final subtotal = (purchase['subtotal'] ?? 0).toDouble();
+              final status = purchase['status']?.toString() ?? '-';
+              final tanggalBeli = _formatDate(purchase['tanggal_beli']);
+              final jatuhTempo = _formatDate(purchase['jatuh_tempo']);
+
+              return ListTile(
+                title: Text('$namaBarang ($namaSupplier)'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$jumlah • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
+                    Text('Status: $status • Tanggal: $tanggalBeli • Jatuh Tempo: $jatuhTempo'),
+                  ],
+                ),
+                trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(subtotal)),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableView(List<Map<String, dynamic>> purchases) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
         scrollDirection: Axis.vertical,
         child: Column(
           children: [
-            // Tambahan: Info jumlah data dan total
+            // Info jumlah data
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Jumlah Data: ${_filteredPurchases.length}',
+                    'Jumlah Data: ${purchases.length}',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: Colors.blueGrey,
                     ),
                   ),
-                  // Text(
-                  //   'Total: ${_formatCurrency(_totalPembelian)}',
-                  //   style: const TextStyle(
-                  //     fontSize: 14,
-                  //     fontWeight: FontWeight.bold,
-                  //     color: Colors.red,
-                  //   ),
-                  // ),
                 ],
               ),
             ),
-
-            Column(
-              children: _filteredPurchases.map((purchase) {
+            DataTable(
+              columns: const [
+                DataColumn(label: Text('Supplier')),
+                DataColumn(label: Text('Barang')),
+                DataColumn(label: Text('Jumlah')),
+                DataColumn(label: Text('Harga Satuan')),
+                DataColumn(label: Text('Subtotal')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Tanggal Beli')),
+                DataColumn(label: Text('Jatuh Tempo')),
+              ],
+              rows: purchases.map((purchase) {
                 final namaBarang = purchase['nama_barang']?.toString() ?? '';
                 final namaSupplier = purchase['nama_supplier']?.toString() ?? '';
                 final jumlah = NumberFormat('#,###').format(purchase['jumlah'] ?? 0);
-                final hargaSatuan = (purchase['harga_satuan'] ?? 0).toDouble();
-                final subtotal = (purchase['subtotal'] ?? 0).toDouble();
+                final hargaSatuan = _formatCurrency(purchase['harga_satuan'] ?? 0);
+                final subtotal = _formatCurrency(purchase['subtotal'] ?? 0);
+                final status = purchase['status']?.toString() ?? '-';
+                final tanggalBeli = _formatDate(purchase['tanggal_beli']);
+                final jatuhTempo = _formatDate(purchase['jatuh_tempo']);
 
-                return ListTile(
-                  title: Text('$namaBarang ($namaSupplier)'),
-                  subtitle: Text('$jumlah • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
-                  trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(subtotal)),
-                );
+                return DataRow(cells: [
+                  DataCell(Text(namaSupplier)),
+                  DataCell(Text(namaBarang)),
+                  DataCell(Text(jumlah)),
+                  DataCell(Text(hargaSatuan)),
+                  DataCell(Text(subtotal)),
+                  DataCell(Text(status)),
+                  DataCell(Text(tanggalBeli)),
+                  DataCell(Text(jatuhTempo)),
+                ]);
               }).toList(),
             ),
           ],
@@ -277,7 +358,7 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
     final safeValue = value ?? 0;
     final formatter = NumberFormat.currency(
       locale: 'id_ID',
-      decimalDigits: 0,
+      decimalDigits: 1,
     );
     return formatter.format(safeValue.toDouble()).replaceFirst('IDR', 'Rp');
   }

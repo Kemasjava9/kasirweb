@@ -67,7 +67,7 @@ class LaporanPage extends StatelessWidget {
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                   ),
-                  body: SalesDetailWidget(),
+                  body: const SalesDetailWidget(),
                 )),
               ),
             ),
@@ -111,6 +111,7 @@ class LaporanPage extends StatelessWidget {
                 )),
               ),
             ),
+
             // Komisi Report
             _buildReportButton(
               context,

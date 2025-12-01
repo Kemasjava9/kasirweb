@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'dart:math';
 
 class LaporanDb {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -361,40 +362,106 @@ class LaporanDb {
   // Get sales by invoice number with improved performance
   static Future<List<Map<String, dynamic>>> getSalesByInvoice() async {
     try {
+      print('DEBUG: Loading sales data from detail_penjualan collection...');
       final querySnapshot = await _firestore
           .collection('detail_penjualan')
-          .orderBy('tanggal_jual', descending: true)
           .get();
+
+      print('DEBUG: Retrieved ${querySnapshot.docs.length} sales documents from database');
 
       // Group by invoice number
       final Map<String, Map<String, dynamic>> invoiceMap = {};
       double totalPenjualan = 0;
+      int processedInvoices = 0;
 
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
         final noFaktur = data['nofaktur_jual']?.toString() ?? '';
 
-        if (noFaktur.isEmpty) continue;
+        if (noFaktur.isEmpty) {
+          print('DEBUG: Skipping document ${doc.id} - empty nofaktur_jual');
+          continue;
+        }
 
         final jumlah = (data['jumlah'] as num?)?.toDouble() ?? 0;
         final hargaSatuan = (data['harga_satuan'] as num?)?.toDouble() ?? 0;
         final subtotal = hargaSatuan * jumlah;
 
+        // Get product name from barang collection
+        String namaBarang = _safeValue(data['nama_barang'], defaultValue: '-');
+        final kodeBarang = data['kode_barang']?.toString() ?? '';
+        if (namaBarang == '-' && kodeBarang.isNotEmpty) {
+          try {
+            final barangQuery = await _firestore
+                .collection('barang')
+                .where('kode_barang', isEqualTo: kodeBarang)
+                .limit(1)
+                .get();
+
+            if (barangQuery.docs.isNotEmpty) {
+              final barangData = barangQuery.docs.first.data();
+              namaBarang = barangData['nama_barang']?.toString() ?? '-';
+              print('DEBUG: Found product name for $kodeBarang: $namaBarang');
+            }
+          } catch (e) {
+            print('DEBUG: Error fetching product name for $kodeBarang: $e');
+          }
+        }
+
         if (!invoiceMap.containsKey(noFaktur)) {
+          // Get header information from penjualan collection
+          String tanggalJual = _formatDate(data['tanggal_jual']);
+          String namaPelanggan = '-';
+          String namaSales = '-';
+          String status = '-';
+          String caraBayar = '-';
+          double diskonTotal = 0.0;
+          double ongkosKirimTotal = 0.0;
+
+          try {
+            final penjualanQuery = await _firestore
+                .collection('penjualan')
+                .where('nofaktur_jual', isEqualTo: noFaktur)
+                .limit(1)
+                .get();
+
+            if (penjualanQuery.docs.isNotEmpty) {
+              final penjualanData = penjualanQuery.docs.first.data();
+              tanggalJual = _formatDate(penjualanData['tanggal_jual']);
+              namaPelanggan = _safeValue(penjualanData['nama_pelanggan'], defaultValue: '-');
+              namaSales = _safeValue(penjualanData['nama_sales'], defaultValue: '-');
+              status = _safeValue(penjualanData['status'], defaultValue: '-');
+              caraBayar = _safeValue(penjualanData['cara_bayar'], defaultValue: '-');
+              diskonTotal = _safeValue(penjualanData['diskon'], defaultValue: 0.0);
+              ongkosKirimTotal = _safeValue(penjualanData['ongkos_kirim'], defaultValue: 0.0);
+              print('DEBUG: Found header data for invoice $noFaktur: customer=$namaPelanggan, status=$status');
+            } else {
+              print('DEBUG: No header data found for invoice $noFaktur');
+            }
+          } catch (e) {
+            print('DEBUG: Error fetching header data for $noFaktur: $e');
+          }
+
           invoiceMap[noFaktur] = {
             'No Faktur': noFaktur,
-            'Tanggal Jual': _formatDate(data['tanggal_jual']),
-            'Nama Pelanggan': _safeValue(data['nama_pelanggan'], defaultValue: '-'),
-            'Nama Sales': _safeValue(data['nama_sales'], defaultValue: '-'),
-            'Status': _safeValue(data['status'], defaultValue: '-'),
-            'Cara Bayar': _safeValue(data['cara_bayar'], defaultValue: '-'),
+            'Tanggal Jual': tanggalJual,
+            'Nama Pelanggan': namaPelanggan,
+            'Nama Sales': namaSales,
+            'Status': status,
+            'Cara Bayar': caraBayar,
+            'Diskon': diskonTotal,
+            'Diskon_formatted': _formatCurrency(diskonTotal),
+            'Ongkos Kirim': ongkosKirimTotal,
+            'Ongkos Kirim_formatted': _formatCurrency(ongkosKirimTotal),
             'items': <Map<String, dynamic>>[],
             'total_invoice': 0.0,
           };
+          processedInvoices++;
+          print('DEBUG: Created new invoice entry for $noFaktur');
         }
 
         final item = {
-          'Nama Barang': _safeValue(data['nama_barang'], defaultValue: '-'),
+          'Nama Barang': namaBarang,
           'Harga Satuan': hargaSatuan,
           'Harga Satuan_formatted': _formatCurrency(hargaSatuan),
           'Jumlah': jumlah,
@@ -412,16 +479,26 @@ class LaporanDb {
         invoiceMap[noFaktur]!['items'].add(item);
         invoiceMap[noFaktur]!['total_invoice'] += subtotal;
         totalPenjualan += subtotal;
+        print('DEBUG: Added item to invoice $noFaktur - subtotal: $subtotal, running total: ${invoiceMap[noFaktur]!['total_invoice']}');
       }
+
+      print('DEBUG: Processed $processedInvoices unique invoices');
 
       // Convert to list and add formatted values
       final results = invoiceMap.values.map((invoice) {
         final total = invoice['total_invoice'] as double;
+        final diskon = invoice['Diskon'] as double;
+        final ongkosKirim = invoice['Ongkos Kirim'] as double;
+        final totalAfterDiscount = total - diskon + ongkosKirim;
+
         return {
           ...invoice,
-          'total_invoice_formatted': _formatCurrency(total),
+          'total_invoice': totalAfterDiscount,
+          'total_invoice_formatted': _formatCurrency(totalAfterDiscount),
         };
       }).toList();
+
+      print('DEBUG: Converted ${results.length} invoices to result list');
 
       // Add summary
       if (results.isNotEmpty) {
@@ -432,84 +509,163 @@ class LaporanDb {
           'jumlah_invoice': results.length,
           'periode': 'Keseluruhan',
         });
+        print('DEBUG: Added summary with total sales: ${_formatCurrency(totalPenjualan)}, invoice count: ${results.length}');
       }
 
+      print('DEBUG: Returning ${results.length} results (including summary)');
       return results;
     } catch (e) {
+      print('DEBUG: Error in getSalesByInvoice: $e');
       throw Exception('Gagal mengambil data penjualan: $e');
     }
   }
 
-  // Get purchases by supplier with improved grouping
+  // Get purchases by supplier - returns individual purchase records with joined data
   static Future<List<Map<String, dynamic>>> getPurchasesBySupplier() async {
     try {
+      print('DEBUG: Fetching purchase data from detail_pembelian collection...');
       final querySnapshot = await _firestore
           .collection('detail_pembelian')
-          .orderBy('tanggal_beli', descending: true)
           .get();
 
-      // Group by supplier
-      final Map<String, Map<String, dynamic>> supplierMap = {};
+      print('DEBUG: Retrieved ${querySnapshot.docs.length} purchase documents from database');
+
+      final List<Map<String, dynamic>> results = [];
       double totalPembelian = 0;
+      int processedDocs = 0;
 
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
-        final namaSupplier = data['nama_supplier']?.toString().trim() ?? '';
+        print('DEBUG: Processing document ${doc.id} with data: $data');
 
-        if (namaSupplier.isEmpty) continue;
+        final idBeli = data['id_beli']?.toString() ?? '';
+        final kodeBarang = data['kode_barang']?.toString() ?? '';
 
-        final subtotal = (data['subtotal'] as num?)?.toDouble() ?? 0;
+        // Get supplier and purchase header data from pembelian collection
+        String namaSupplier = '-';
+        String status = '-';
+        String tanggalBeli = '-';
+        String jatuhTempo = '-';
 
-        if (!supplierMap.containsKey(namaSupplier)) {
-          supplierMap[namaSupplier] = {
-            'nama_supplier': namaSupplier,
-            'items': <Map<String, dynamic>>[],
-            'total_pembelian': 0.0,
-          };
+        if (idBeli.isNotEmpty) {
+          try {
+            final pembelianQuery = await _firestore
+                .collection('pembelian')
+                .where('id_beli', isEqualTo: idBeli)
+                .limit(1)
+                .get();
+
+            if (pembelianQuery.docs.isNotEmpty) {
+              final pembelianData = pembelianQuery.docs.first.data();
+              final kodeSupplier = pembelianData['kode_supplier']?.toString() ?? '';
+
+              // Get supplier name from supplier collection
+              if (kodeSupplier.isNotEmpty) {
+                try {
+                  final supplierDoc = await _firestore
+                      .collection('supplier')
+                      .doc(kodeSupplier)
+                      .get();
+
+                  if (supplierDoc.exists) {
+                    final supplierData = supplierDoc.data()!;
+                    namaSupplier = supplierData['nama_supplier']?.toString() ?? '-';
+                    print('DEBUG: Found supplier data for $kodeSupplier: nama_supplier=$namaSupplier');
+                  } else {
+                    print('DEBUG: No supplier document found for kode_supplier: $kodeSupplier');
+                  }
+                } catch (e) {
+                  print('DEBUG: Error fetching supplier data for $kodeSupplier: $e');
+                }
+              }
+
+              status = pembelianData['status']?.toString() ?? '-';
+              tanggalBeli = _formatDate(pembelianData['tanggal_beli']);
+              jatuhTempo = _formatDate(pembelianData['jatuh_tempo']);
+              print('DEBUG: Found pembelian data for $idBeli: kode_supplier=$kodeSupplier, status=$status');
+            } else {
+              print('DEBUG: No pembelian document found for id_beli: $idBeli');
+            }
+          } catch (e) {
+            print('DEBUG: Error fetching pembelian data for $idBeli: $e');
+          }
         }
 
+        // Get product name from barang collection
+        String namaBarang = '-';
+        if (kodeBarang.isNotEmpty) {
+          try {
+            final barangQuery = await _firestore
+                .collection('barang')
+                .where('kode_barang', isEqualTo: kodeBarang)
+                .limit(1)
+                .get();
+
+            if (barangQuery.docs.isNotEmpty) {
+              final barangData = barangQuery.docs.first.data();
+              namaBarang = barangData['nama_barang']?.toString() ?? '-';
+              print('DEBUG: Found barang data for $kodeBarang: nama_barang=$namaBarang');
+            } else {
+              print('DEBUG: No barang document found for kode_barang: $kodeBarang');
+            }
+          } catch (e) {
+            print('DEBUG: Error fetching barang data for $kodeBarang: $e');
+          }
+        }
+
+        final subtotal = (data['subtotal'] as num?)?.toDouble() ?? 0;
+        processedDocs++;
+
         final item = {
-          'nama_barang': _safeValue(data['nama_barang'], defaultValue: '-'),
+          'nama_supplier': namaSupplier,
+          'nama_barang': namaBarang,
           'harga_satuan': _safeValue(data['harga_satuan'], defaultValue: 0.0),
           'harga_satuan_formatted': _formatCurrency(data['harga_satuan']),
           'jumlah': _safeValue(data['jumlah'], defaultValue: 0.0),
           'subtotal': subtotal,
           'subtotal_formatted': _formatCurrency(subtotal),
-          'status': _safeValue(data['status'], defaultValue: '-'),
-          'tanggal_beli': _formatDate(data['tanggal_beli']),
-          'jatuh_tempo': _formatDate(data['jatuh_tempo']),
+          'status': status,
+          'tanggal_beli': tanggalBeli,
+          'jatuh_tempo': jatuhTempo,
         };
 
-        supplierMap[namaSupplier]!['items'].add(item);
-        supplierMap[namaSupplier]!['total_pembelian'] += subtotal;
+        results.add(item);
         totalPembelian += subtotal;
       }
 
-      // Convert to list and add formatted values
-      final results = supplierMap.values.map((supplier) {
-        final total = supplier['total_pembelian'] as double;
-        return {
-          ...supplier,
-          'total_pembelian_formatted': _formatCurrency(total),
-        };
-      }).toList();
+      print('DEBUG: Processing complete - Processed: $processedDocs');
 
-      // Sort by total pembelian descending
-      results.sort((a, b) => (b['total_pembelian'] as double).compareTo(a['total_pembelian'] as double));
+      // Sort by supplier name, then by date
+      results.sort((a, b) {
+        final supplierA = a['nama_supplier'] as String;
+        final supplierB = b['nama_supplier'] as String;
+        final supplierCompare = supplierA.compareTo(supplierB);
+        if (supplierCompare != 0) return supplierCompare;
 
-      // Add summary
+        // If same supplier, sort by date descending
+        final dateA = a['tanggal_beli'] as String;
+        final dateB = b['tanggal_beli'] as String;
+        return dateB.compareTo(dateA); // Descending order
+      });
+
+      print('DEBUG: Sorted ${results.length} purchases by supplier and date');
+
+      // Add summary as first item
       if (results.isNotEmpty) {
         results.insert(0, {
           'is_summary': true,
           'total_pembelian_all': totalPembelian,
           'total_pembelian_all_formatted': _formatCurrency(totalPembelian),
-          'jumlah_supplier': results.length,
+          'jumlah_pembelian': results.length,
           'periode': 'Keseluruhan',
         });
+        print('DEBUG: Added summary with total purchase: ${_formatCurrency(totalPembelian)}');
       }
 
+      print('DEBUG: Returning ${results.length} results (including summary)');
       return results;
     } catch (e) {
+      print('DEBUG: Error in getPurchasesBySupplier: $e');
       throw Exception('Gagal mengambil data pembelian: $e');
     }
   }
@@ -541,16 +697,19 @@ class LaporanDb {
       double hppValue = 0;
       double sellingValue = 0;
 
+      print('DEBUG: Processing ${productCount} products from barang collection');
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
         final jumlah = (data['jumlah'] as num?)?.toInt() ?? 0;
         final hpp = (data['HPP'] as num?)?.toDouble() ?? 0;
         final hargaJual = (data['harga_pcs'] as num?)?.toDouble() ?? 0;
 
+        print('DEBUG: Product ${doc.id} - jumlah: $jumlah, HPP: $hpp, harga_pcs: $hargaJual');
         jumlahStokTotal += jumlah;
         hppValue += hpp * jumlah;
         sellingValue += hargaJual * jumlah;
       }
+      print('DEBUG: Total - productCount: $productCount, jumlahStokTotal: $jumlahStokTotal, hppValue: $hppValue, sellingValue: $sellingValue');
 
       // Get total debt from pembelian
       double totalDebt = 0;
@@ -562,23 +721,27 @@ class LaporanDb {
         
         for (var doc in debtQuery.docs) {
           final data = doc.data();
-          totalDebt += (data['sisa_bayar'] as num?)?.toDouble() ?? 0;
+          totalDebt += (data['total_beli'] as num?)?.toDouble() ?? 0;
         }
       } catch (e) {
         print('Error fetching debt data: $e');
       }
 
-      // Get total receivable from penjualan
+      // Get total receivable from penjualan - calculate outstanding amounts
       double totalReceivable = 0;
       try {
         final receivableQuery = await _firestore
             .collection('penjualan')
-            .where('status', isNotEqualTo: 'lunas')
             .get();
-        
+
         for (var doc in receivableQuery.docs) {
           final data = doc.data();
-          totalReceivable += (data['sisa_bayar'] as num?)?.toDouble() ?? 0;
+          final status = data['status']?.toString() ?? '';
+          final totalJual = data['total_jual'] is num ? (data['total_jual'] as num).toDouble() : double.tryParse(data['total_jual']?.toString() ?? '0') ?? 0;
+          final bayar = data['bayar'] is num ? (data['bayar'] as num).toDouble() : double.tryParse(data['bayar']?.toString() ?? '0') ?? 0;
+          final receivable = max(0.0, (totalJual - bayar).roundToDouble());
+          print('DEBUG: Doc ID ${doc.id} - status: $status, total_jual: $totalJual, bayar: $bayar, receivable: $receivable');
+          totalReceivable += receivable;
         }
       } catch (e) {
         print('Error fetching receivable data: $e');
@@ -602,7 +765,6 @@ class LaporanDb {
         'total_debt_formatted': _formatCurrency(totalDebt),
         'total_receivable_formatted': _formatCurrency(totalReceivable),
         'potential_profit_formatted': _formatCurrency(potentialProfit),
-        'last_updated': _formatDate(Timestamp.now()),
       };
     } catch (e) {
       throw Exception('Gagal mengambil ringkasan produk: $e');
