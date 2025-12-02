@@ -20,6 +20,9 @@ class _PenjualanPageState extends State<PenjualanPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<Barang> _barangList = [];
   List<Pelanggan> _pelangganList = [];
+  double fabTop = 0;
+  double fabLeft = 0;
+  bool fabPositionInitialized = false;
 
   @override
   void initState() {
@@ -44,240 +47,276 @@ class _PenjualanPageState extends State<PenjualanPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize FAB position if not done yet
+    if (!fabPositionInitialized) {
+      final screenSize = MediaQuery.of(context).size;
+      fabTop = screenSize.height - 150; // Bottom margin
+      fabLeft = screenSize.width - 180; // Right margin
+      fabPositionInitialized = true;
+    }
+
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
               children: [
-                const Text(
-                  'Transaksi Penjualan',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    const Text(
+                      'Transaksi Penjualan',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 56),
+                  ],
                 ),
-                const Spacer(),
-                      const SizedBox(width: 56),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _firestore.collection('penjualan').snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  }
+                const SizedBox(height: 16),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: _firestore.collection('penjualan').snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(child: Text('Error: ${snapshot.error}'));
+                      }
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                  var penjualanList = snapshot.data!.docs;
+                      var penjualanList = snapshot.data!.docs;
 
-                  return ListView.builder(
-                    itemCount: penjualanList.length,
-                    itemBuilder: (context, index) {
-                      var data = penjualanList[index].data() as Map<String, dynamic>;
-                      final nofaktur = data['nofaktur_jual']?.toString() ?? '';
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ExpansionTile(
-                          leading: const Icon(Icons.point_of_sale, color: Colors.blue),
-                          title: Text('Penjualan #$nofaktur'),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Pelanggan: ${data['nama_pelanggan']}'),
-                              Text('Tanggal: ${data['tanggal_jual']}'),
-                              Text(
-                                NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1)
-                                    .format((data['total_jual'] ?? 0).toDouble()),
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                      return ListView.builder(
+                        itemCount: penjualanList.length,
+                        itemBuilder: (context, index) {
+                          var data = penjualanList[index].data() as Map<String, dynamic>;
+                          final nofaktur = data['nofaktur_jual']?.toString() ?? '';
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ExpansionTile(
+                              leading: const Icon(Icons.point_of_sale, color: Colors.blue),
+                              title: Text('Penjualan #$nofaktur'),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Pelanggan: ${data['nama_pelanggan']}'),
+                                  Text('Tanggal: ${data['tanggal_jual']}'),
+                                  Text(
+                                    NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1)
+                                        .format((data['total_jual'] ?? 0).toDouble()),
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  if (data['status'] == 'Belum Lunas')
+                                    FutureBuilder<double>(
+                                      future: _getTotalTerminPaid(data),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState == ConnectionState.waiting) {
+                                          return const Text(
+                                            'Dibayar: Loading...',
+                                            style: TextStyle(color: Colors.orange, fontSize: 12),
+                                          );
+                                        }
+                                        if (snapshot.hasError) {
+                                          return const Text(
+                                            'Dibayar: Error',
+                                            style: TextStyle(color: Colors.orange, fontSize: 12),
+                                          );
+                                        }
+                                        final totalPaid = snapshot.data ?? 0;
+                                        return Text(
+                                          'Dibayar: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(totalPaid)}',
+                                          style: const TextStyle(color: Colors.orange, fontSize: 12),
+                                        );
+                                      },
+                                    ),
+                                ],
                               ),
-                              if (data['status'] == 'Belum Lunas') ...[
-                                FutureBuilder<double>(
-                                  future: _getTotalTerminPaid(data),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState == ConnectionState.waiting) {
-                                      return const Text(
-                                        'Dibayar: Loading...',
-                                        style: TextStyle(color: Colors.orange, fontSize: 12),
-                                      );
-                                    }
-                                    if (snapshot.hasError) {
-                                      return const Text(
-                                        'Dibayar: Error',
-                                        style: TextStyle(color: Colors.orange, fontSize: 12),
-                                      );
-                                    }
-                                    final totalPaid = snapshot.data ?? 0;
-                                    return Text(
-                                      'Dibayar: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(totalPaid)}',
-                                      style: const TextStyle(color: Colors.orange, fontSize: 12),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Chip(
-                                label: Text(
-                                  (data['status'] ?? 'Pending').toString(),
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                                backgroundColor: _getStatusColor(data['status']),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Chip(
+                                    label: Text(
+                                      (data['status'] ?? 'Pending').toString(),
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                    backgroundColor: _getStatusColor(data['status']),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: FutureBuilder<QuerySnapshot>(
-                                future: _firestore
-                                    .collection('detail_penjualan')
-                                    .where('nofaktur_jual', isEqualTo: nofaktur)
-                                    .get(),
-                                builder: (context, snapDetail) {
-                                  if (snapDetail.connectionState == ConnectionState.waiting) {
-                                    return const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Center(child: CircularProgressIndicator()),
-                                    );
-                                  }
-                                  if (snapDetail.hasError) {
-                                    return Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Text('Error: ${snapDetail.error}'),
-                                    );
-                                  }
-
-                                  final details = snapDetail.data?.docs ?? [];
-                                  if (details.isEmpty) {
-                                    return const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('Tidak ada item penjualan'),
-                                    );
-                                  }
-
-                                  return Column(
-                                    children: details.map((d) {
-                                      final m = d.data() as Map<String, dynamic>;
-                                      final kode = m['kode_barang'] ?? '';
-                                      final barang = _barangList.firstWhere(
-                                        (b) => b.kodeBarang == kode,
-                                        orElse: () => Barang(
-                                          kodeBarang: kode,
-                                          namaBarang: kode,
-                                          satuanPcs: 'pcs',
-                                          satuanDus: 'dus',
-                                          isiDus: 1,
-                                          hargaPcs: (m['harga_satuan']?.toDouble() ?? 0.0),
-                                          hargaDus: (m['harga_satuan']?.toDouble() ?? 0.0),
-                                          jumlah: 0,
-                                          hpp: 0.0,
-                                          hppDus: 0.0,
-                                        ),
-                                      );
-                                      final jumlah = m['jumlah'] ?? 0;
-                                      final satuan = m['satuan'] ?? '';
-                                      final hargaSatuan = (m['harga_satuan'] ?? 0).toDouble();
-                                      final subtotal = (m['subtotal'] ?? 0).toDouble();
-
-                                      return ListTile(
-                                        title: Text('${barang.namaBarang} (${kode})'),
-                                        subtitle: Text('${NumberFormat('#,###').format(jumlah)} $satuan • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
-                                        trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(subtotal)),
-                                      );
-                                    }).toList(),
-                                  );
-                                },
-                              ),
-                            ),
-                            ButtonBar(
                               children: [
-                                IconButton(
-                                  icon: const Icon(Icons.visibility, color: Colors.green),
-                                  tooltip: 'Lihat Detail',
-                                  onPressed: () => _showDetailDialog(data),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                  child: FutureBuilder<QuerySnapshot>(
+                                    future: _firestore
+                                        .collection('detail_penjualan')
+                                        .where('nofaktur_jual', isEqualTo: nofaktur)
+                                        .get(),
+                                    builder: (context, snapDetail) {
+                                      if (snapDetail.connectionState == ConnectionState.waiting) {
+                                        return const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Center(child: CircularProgressIndicator()),
+                                        );
+                                      }
+                                      if (snapDetail.hasError) {
+                                        return Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Text('Error: ${snapDetail.error}'),
+                                        );
+                                      }
+
+                                      final details = snapDetail.data?.docs ?? [];
+                                      if (details.isEmpty) {
+                                        return const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Text('Tidak ada item penjualan'),
+                                        );
+                                      }
+
+                                      return Column(
+                                        children: details.map((d) {
+                                          final m = d.data() as Map<String, dynamic>;
+                                          final kode = m['kode_barang'] ?? '';
+                                          final barang = _barangList.firstWhere(
+                                            (b) => b.kodeBarang == kode,
+                                            orElse: () => Barang(
+                                              kodeBarang: kode,
+                                              namaBarang: kode,
+                                              satuanPcs: 'pcs',
+                                              satuanDus: 'dus',
+                                              isiDus: 1,
+                                              hargaPcs: (m['harga_satuan']?.toDouble() ?? 0.0),
+                                              hargaDus: (m['harga_satuan']?.toDouble() ?? 0.0),
+                                              jumlah: 0,
+                                              hpp: 0.0,
+                                              hppDus: 0.0,
+                                            ),
+                                          );
+                                          final jumlah = m['jumlah'] ?? 0;
+                                          final satuan = m['satuan'] ?? '';
+                                          final hargaSatuan = (m['harga_satuan'] ?? 0).toDouble();
+                                          final subtotal = (m['subtotal'] ?? 0).toDouble();
+
+                                          return ListTile(
+                                            title: Text('${barang.namaBarang} (${kode})'),
+                                            subtitle: Text(
+                                                '${NumberFormat('#,###').format(jumlah)} $satuan • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
+                                            trailing: Text(NumberFormat.currency(
+                                                    locale: 'id', symbol: 'Rp ', decimalDigits: 1)
+                                                .format(subtotal)),
+                                          );
+                                        }).toList(),
+                                      );
+                                    },
+                                  ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  tooltip: 'Hapus Penjualan',
-                                  onPressed: () => _showDeleteDialog(data, nofaktur),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.print, color: Colors.blue),
-                                  tooltip: 'Cetak Faktur',
-                                  onPressed: () => _printFaktur(data),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.local_shipping, color: Colors.blue),
-                                  tooltip: 'Buat Surat Jalan',
-                                  onPressed: () => _showSuratJalanDialog(data),
+                                ButtonBar(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.visibility, color: Colors.green),
+                                      tooltip: 'Lihat Detail',
+                                      onPressed: () => _showDetailDialog(data),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      tooltip: 'Hapus Penjualan',
+                                      onPressed: () => _showDeleteDialog(data, nofaktur),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.print, color: Colors.blue),
+                                      tooltip: 'Cetak Faktur',
+                                      onPressed: () => _printFaktur(data),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.local_shipping, color: Colors.blue),
+                                      tooltip: 'Buat Surat Jalan',
+                                      onPressed: () => _showSuratJalanDialog(data),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       );
                     },
-                  );
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: fabTop,
+            left: fabLeft,
+            child: GestureDetector(
+              onPanUpdate: (details) {
+                setState(() {
+                  fabTop += details.delta.dy;
+                  fabLeft += details.delta.dx;
+                  final screenSize = MediaQuery.of(context).size;
+                  fabTop = fabTop.clamp(0.0, screenSize.height - 40.0);
+                  fabLeft = fabLeft.clamp(0.0, screenSize.width + 50.0);
+                });
+              },
+              child: FloatingActionButton(
+                onPressed: () async {
+                  final result = await Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const PenjualanFormPage()));
+                  if (result != null && result is Map) {
+                    try {
+                      final pelanggan = result['pelanggan'] as String?;
+                      final tanggal = result['tanggal'] as DateTime?;
+                      final caraBayar = result['cara_bayar'] as String? ?? '';
+                      final itemsRaw = result['items'] as List<dynamic>?;
+
+                      if (pelanggan == null ||
+                          tanggal == null ||
+                          itemsRaw == null ||
+                          itemsRaw.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Data penjualan tidak lengkap')));
+                        return;
+                      }
+
+                      // Reconstruct DetailPenjualan instances from maps (or pass-through if already of that type)
+                      final items = <DetailPenjualan>[];
+                      for (var it in itemsRaw) {
+                        if (it is DetailPenjualan) {
+                          items.add(it);
+                        } else if (it is Map<String, dynamic>) {
+                          items.add(DetailPenjualan.fromMap(it));
+                        } else if (it is Map) {
+                          items.add(DetailPenjualan.fromMap(Map<String, dynamic>.from(it)));
+                        }
+                      }
+
+                      if (items.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Item penjualan tidak valid')));
+                        return;
+                      }
+
+                      final sales = result['sales'] as String?;
+                      final komisi = result['komisi'] as String?;
+                      await _savePenjualan(
+                          pelanggan, tanggal, caraBayar, items, sales, komisi);
+                    } catch (e, st) {
+                      // Don't crash the app; show error and log
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Gagal memproses penjualan: $e')));
+                      // ignore: avoid_print
+                      print('Error processing penjualan result: $e\n$st');
+                    }
+                  }
                 },
+                child: const Icon(Icons.add),
+                tooltip: 'Tambah Penjualan',
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PenjualanFormPage()));
-          if (result != null && result is Map) {
-            try {
-              final pelanggan = result['pelanggan'] as String?;
-              final tanggal = result['tanggal'] as DateTime?;
-              final caraBayar = result['cara_bayar'] as String? ?? '';
-              final itemsRaw = result['items'] as List<dynamic>?;
-
-              if (pelanggan == null || tanggal == null || itemsRaw == null || itemsRaw.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data penjualan tidak lengkap')));
-                return;
-              }
-
-              // Reconstruct DetailPenjualan instances from maps (or pass-through if already of that type)
-              final items = <DetailPenjualan>[];
-              for (var it in itemsRaw) {
-                if (it is DetailPenjualan) {
-                  items.add(it);
-                } else if (it is Map<String, dynamic>) {
-                  items.add(DetailPenjualan.fromMap(it));
-                } else if (it is Map) {
-                  items.add(DetailPenjualan.fromMap(Map<String, dynamic>.from(it)));
-                }
-              }
-
-              if (items.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item penjualan tidak valid')));
-                return;
-              }
-
-              final sales = result['sales'] as String?;
-              final komisi = result['komisi'] as String?;
-              await _savePenjualan(pelanggan, tanggal, caraBayar, items, sales, komisi);
-            } catch (e, st) {
-              // Don't crash the app; show error and log
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memproses penjualan: $e')));
-              // ignore: avoid_print
-              print('Error processing penjualan result: $e\n$st');
-            }
-          }
-        },
-        child: const Icon(Icons.add),
-        tooltip: 'Tambah Penjualan',
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -297,22 +336,25 @@ class _PenjualanPageState extends State<PenjualanPage> {
 
   // _calculateTotal removed; totals are computed in form pages now.
 
-  Future<void> _savePenjualan(String pelanggan, DateTime tanggal, String caraBayar, List<DetailPenjualan> cartItems, String? sales, String? komisi) async {
+  Future<void> _savePenjualan(String pelanggan, DateTime tanggal, String caraBayar,
+      List<DetailPenjualan> cartItems, String? sales, String? komisi) async {
     try {
       // Start a new batch
       final batch = _firestore.batch();
-      
+
       // Generate penjualan code PJnnnnn/MM/YYYY
       final now = DateTime.now();
-      final noFaktur = await CodeGenerator.nextMonthlyCode(_firestore, 'penjualan', 'nofaktur_jual', 'PJ', 5, now.month, now.year);
-      
+      final noFaktur = await CodeGenerator.nextMonthlyCode(
+          _firestore, 'penjualan', 'nofaktur_jual', 'PJ', 5, now.month, now.year);
+
       // Calculate total
       double total = 0;
       for (var item in cartItems) {
         total += item.subtotal;
       }
 
-      final pelangganData = _pelangganList.firstWhere((p) => p.kodePelanggan == pelanggan);
+      final pelangganData =
+          _pelangganList.firstWhere((p) => p.kodePelanggan == pelanggan);
 
       // Prepare penjualan data according to schema
       final penjualanData = {
@@ -355,14 +397,15 @@ class _PenjualanPageState extends State<PenjualanPage> {
         batch.set(detailRef, detailData);
 
         // Update stock in the same batch
-        final stokToReduce = item.satuan == 'dus' 
-          ? item.jumlah * _barangList.firstWhere((b) => b.kodeBarang == item.kodeBarang).isiDus 
-          : item.jumlah;
-        
+        final stokToReduce = item.satuan == 'dus'
+            ? item.jumlah *
+                _barangList
+                    .firstWhere((b) => b.kodeBarang == item.kodeBarang)
+                    .isiDus
+            : item.jumlah;
+
         final barangRef = _firestore.collection('barang').doc(item.kodeBarang);
-        batch.update(barangRef, {
-          'jumlah': FieldValue.increment(-stokToReduce)
-        });
+        batch.update(barangRef, {'jumlah': FieldValue.increment(-stokToReduce)});
       }
 
       // Commit the entire batch atomically
@@ -370,7 +413,10 @@ class _PenjualanPageState extends State<PenjualanPage> {
 
       // Diagnostic: count how many detail_penjualan were saved for this nofaktur
       try {
-        final q = await _firestore.collection('detail_penjualan').where('nofaktur_jual', isEqualTo: noFaktur).get();
+        final q = await _firestore
+            .collection('detail_penjualan')
+            .where('nofaktur_jual', isEqualTo: noFaktur)
+            .get();
         final savedCount = q.docs.length;
         // ignore: avoid_print
         print('Saved penjualan $noFaktur with $savedCount detail_penjualan items');
@@ -385,16 +431,15 @@ class _PenjualanPageState extends State<PenjualanPage> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'))
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
   void _showSuratJalanDialog(Map<String, dynamic> penjualanData) async {
     final nofaktur = penjualanData['nofaktur_jual']?.toString() ?? '';
     final TextEditingController nomorController = TextEditingController();
-    final TextEditingController penerimaController = TextEditingController(text: penjualanData['nama_pelanggan'] ?? '');
+    final TextEditingController penerimaController =
+        TextEditingController(text: penjualanData['nama_pelanggan'] ?? '');
     final TextEditingController alamatController = TextEditingController();
     final TextEditingController notesController = TextEditingController();
     DateTime tanggal = DateTime.now();
@@ -403,11 +448,27 @@ class _PenjualanPageState extends State<PenjualanPage> {
 
     // If using penjualan data, prefetch detail_penjualan
     Future<void> loadItemsFromPenjualan() async {
-      final q = await _firestore.collection('detail_penjualan').where('nofaktur_jual', isEqualTo: nofaktur).get();
+      final q = await _firestore
+          .collection('detail_penjualan')
+          .where('nofaktur_jual', isEqualTo: nofaktur)
+          .get();
       items = q.docs.map((d) {
         final m = d.data();
         final kode = m['kode_barang'] ?? '';
-        final barang = _barangList.firstWhere((b) => b.kodeBarang == kode, orElse: () => Barang(kodeBarang: kode, namaBarang: kode, satuanPcs: 'pcs', satuanDus: 'dus', isiDus: 1, hargaPcs: m['harga_satuan']?.toDouble() ?? 0.0, hargaDus: m['harga_satuan']?.toDouble() ?? 0.0, jumlah: 0, hpp: 0.0, hppDus: 0.0));
+        final barang = _barangList.firstWhere(
+            (b) => b.kodeBarang == kode,
+            orElse: () => Barang(
+                  kodeBarang: kode,
+                  namaBarang: kode,
+                  satuanPcs: 'pcs',
+                  satuanDus: 'dus',
+                  isiDus: 1,
+                  hargaPcs: m['harga_satuan']?.toDouble() ?? 0.0,
+                  hargaDus: m['harga_satuan']?.toDouble() ?? 0.0,
+                  jumlah: 0,
+                  hpp: 0.0,
+                  hppDus: 0.0,
+                ));
         return {
           'kode_barang': kode,
           'nama_barang': barang.namaBarang,
@@ -433,22 +494,31 @@ class _PenjualanPageState extends State<PenjualanPage> {
                     Expanded(
                       child: TextField(
                         controller: nomorController,
-                        decoration: const InputDecoration(labelText: 'Nomor Surat (biarkan kosong untuk auto)'),
+                        decoration:
+                            const InputDecoration(labelText: 'Nomor Surat (biarkan kosong untuk auto)'),
                       ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: () async {
-                        final picked = await showDatePicker(context: context, initialDate: tanggal, firstDate: DateTime(2000), lastDate: DateTime(2100));
+                        final picked = await showDatePicker(
+                            context: context,
+                            initialDate: tanggal,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100));
                         if (picked != null) setState(() => tanggal = picked);
                       },
                       child: const Text('Pilih Tanggal'),
                     ),
                   ]),
                   const SizedBox(height: 8),
-                  TextField(controller: penerimaController, decoration: const InputDecoration(labelText: 'Penerima')),
+                  TextField(
+                      controller: penerimaController,
+                      decoration: const InputDecoration(labelText: 'Penerima')),
                   const SizedBox(height: 8),
-                  TextField(controller: alamatController, decoration: const InputDecoration(labelText: 'Alamat')),
+                  TextField(
+                      controller: alamatController,
+                      decoration: const InputDecoration(labelText: 'Alamat')),
                   const SizedBox(height: 8),
                   Row(children: [
                     const Text('Sumber:'),
@@ -467,13 +537,15 @@ class _PenjualanPageState extends State<PenjualanPage> {
                   ]),
                   const SizedBox(height: 12),
                   if (usePenjualanData) ...[
-                    const Text('Item (dari penjualan):', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Item (dari penjualan):',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Column(
                       children: items.map((it) {
                         return Row(
                           children: [
-                            Expanded(child: Text('${it['nama_barang']} (${it['kode_barang']})')),
+                            Expanded(
+                                child: Text('${it['nama_barang']} (${it['kode_barang']})')),
                             const SizedBox(width: 8),
                             SizedBox(
                               width: 80,
@@ -490,12 +562,14 @@ class _PenjualanPageState extends State<PenjualanPage> {
                       }).toList(),
                     ),
                   ] else ...[
-                    const Text('Masukkan item secara manual (satu per baris: kode|nama|jumlah|satuan)'),
+                    const Text(
+                        'Masukkan item secara manual (satu per baris: kode|nama|jumlah|satuan)'),
                     const SizedBox(height: 8),
                     TextField(
                       controller: notesController,
                       maxLines: 5,
-                      decoration: const InputDecoration(hintText: 'Contoh: B001|Produk A|2|pcs'),
+                      decoration:
+                          const InputDecoration(hintText: 'Contoh: B001|Produk A|2|pcs'),
                     ),
                     const SizedBox(height: 8),
                     ElevatedButton(
@@ -522,7 +596,8 @@ class _PenjualanPageState extends State<PenjualanPage> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+              TextButton(
+                  onPressed: () => Navigator.pop(context), child: const Text('Batal')),
               ElevatedButton(
                 onPressed: () async {
                   // Save surat jalan
@@ -561,7 +636,8 @@ class _PenjualanPageState extends State<PenjualanPage> {
       final now = DateTime.now();
       if (nomor.isEmpty) {
         // Use width=4 to produce SJ0001/MM/YYYY
-        nomor = await CodeGenerator.nextMonthlyCode(_firestore, 'surat_jalan', 'nomor_surat', 'SJ', 4, now.month, now.year);
+        nomor = await CodeGenerator.nextMonthlyCode(
+            _firestore, 'surat_jalan', 'nomor_surat', 'SJ', 4, now.month, now.year);
       }
 
       final data = {
@@ -581,11 +657,13 @@ class _PenjualanPageState extends State<PenjualanPage> {
       // Prepare saved data for printing/export
       final savedData = Map<String, dynamic>.from(data);
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Surat jalan disimpan')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Surat jalan disimpan')));
       // Show post-save options (print/share)
       _showSuratJalanPostSaveOptions(savedData);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error menyimpan surat jalan: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error menyimpan surat jalan: $e')));
     }
   }
 
@@ -609,28 +687,30 @@ class _PenjualanPageState extends State<PenjualanPage> {
                 Navigator.pop(context);
                 try {
                   final bytes = await SuratJalanPrintFormat.buildSuratJalanPdf(data);
-                  await Printing.sharePdf(bytes: bytes, filename: 'SuratJalan_${data['nomor_surat'] ?? 'sj'}.pdf');
+                  await Printing.sharePdf(
+                      bytes: bytes, filename: 'SuratJalan_${data['nomor_surat'] ?? 'sj'}.pdf');
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error share PDF: $e')));
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text('Error share PDF: $e')));
                 }
               },
               child: const Text('Bagikan'),
             ),
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup')),
+            TextButton(
+                onPressed: () => Navigator.pop(context), child: const Text('Tutup')),
           ],
         );
       },
     );
   }
 
-
-
   Future<void> _printSuratJalan(Map<String, dynamic> data) async {
     try {
       final bytes = await SuratJalanPrintFormat.buildSuratJalanPdf(data);
       await Printing.layoutPdf(onLayout: (format) async => bytes);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error generate/print PDF: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error generate/print PDF: $e')));
     }
   }
 
@@ -641,7 +721,8 @@ class _PenjualanPageState extends State<PenjualanPage> {
       builder: (context) {
         return AlertDialog(
           // Make the dialog wider on larger screens while keeping it scrollable
-          insetPadding: const EdgeInsets.symmetric(horizontal: 80.0, vertical: 24.0),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 80.0, vertical: 24.0),
           title: Text('Detail Penjualan #$nofaktur'),
           content: Builder(
             builder: (ctx) {
@@ -652,51 +733,67 @@ class _PenjualanPageState extends State<PenjualanPage> {
                 constraints: BoxConstraints(maxWidth: dialogMaxW),
                 child: SingleChildScrollView(
                   child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('No Faktur: $nofaktur'),
-                Text('Tanggal: ${data['tanggal_jual']}'),
-                Text('Pelanggan: ${data['nama_pelanggan']}'),
-                Text('Sales: ${data['nama_sales']}'),
-                Text('Cara Bayar: ${data['cara_bayar']}'),
-                Text('Status: ${data['status']}'),
-                Text('Diskon: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(data['diskon'] ?? 0)}'),
-                Text('Ongkos Kirim: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(data['ongkos_kirim'] ?? 0)}'),
-                Text('Biaya Lain: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(data['biaya_lain_lain'] ?? 0)}'),
-                Text('Total: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(data['total_jual'] ?? 0)}'),
-                const SizedBox(height: 16),
-                const Text('Detail Item:', style: TextStyle(fontWeight: FontWeight.bold)),
-                FutureBuilder<QuerySnapshot>(
-                  future: _firestore.collection('detail_penjualan').where('nofaktur_jual', isEqualTo: nofaktur).get(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const CircularProgressIndicator();
-                    }
-                    if (snapshot.hasError) {
-                      return Text('Error: ${snapshot.error}');
-                    }
-                    final details = snapshot.data?.docs ?? [];
-                    return Column(
-                      children: details.map((doc) {
-                        final item = doc.data() as Map<String, dynamic>;
-                        return ListTile(
-                          title: Text('${item['kode_barang']}'),
-                          subtitle: Text('${item['jumlah']} ${item['satuan']} x ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(item['harga_satuan'])}'),
-                          trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(item['subtotal'])),
-                        );
-                      }).toList(),
-                    );
-                  },
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('No Faktur: $nofaktur'),
+                      Text('Tanggal: ${data['tanggal_jual']}'),
+                      Text('Pelanggan: ${data['nama_pelanggan']}'),
+                      Text('Sales: ${data['nama_sales']}'),
+                      Text('Cara Bayar: ${data['cara_bayar']}'),
+                      Text('Status: ${data['status']}'),
+                      Text(
+                          'Diskon: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(data['diskon'] ?? 0)}'),
+                      Text(
+                          'Ongkos Kirim: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(data['ongkos_kirim'] ?? 0)}'),
+                      Text(
+                          'Biaya Lain: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(data['biaya_lain_lain'] ?? 0)}'),
+                      Text(
+                          'Total: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(data['total_jual'] ?? 0)}'),
+                      const SizedBox(height: 16),
+                      const Text('Detail Item:',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      FutureBuilder<QuerySnapshot>(
+                        future: _firestore
+                            .collection('detail_penjualan')
+                            .where('nofaktur_jual', isEqualTo: nofaktur)
+                            .get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const CircularProgressIndicator();
+                          }
+                          if (snapshot.hasError) {
+                            return Text('Error: ${snapshot.error}');
+                          }
+                          final details = snapshot.data?.docs ?? [];
+                          return Column(
+                            children: details.map((doc) {
+                              final item = doc.data() as Map<String, dynamic>;
+                              return ListTile(
+                                title: Text('${item['kode_barang']}'),
+                                subtitle: Text(
+                                    '${item['jumlah']} ${item['satuan']} x ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(item['harga_satuan'])}'),
+                                trailing: Text(NumberFormat.currency(
+                                        locale: 'id',
+                                        symbol: 'Rp ',
+                                        decimalDigits: 0)
+                                    .format(item['subtotal'])),
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
-        );
-      },
-    ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup')),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Tutup')),
             ElevatedButton(
               onPressed: (data['status'] == 'Lunas')
                   ? null
@@ -707,8 +804,12 @@ class _PenjualanPageState extends State<PenjualanPage> {
                           title: const Text('Konfirmasi Pembayaran'),
                           content: const Text('Tandai penjualan ini sebagai Lunas?'),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-                            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Ya, Lunas')),
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Batal')),
+                            ElevatedButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Ya, Lunas')),
                           ],
                         ),
                       );
@@ -716,7 +817,10 @@ class _PenjualanPageState extends State<PenjualanPage> {
                       if (confirm != true) return;
 
                       try {
-                        final q = await _firestore.collection('penjualan').where('nofaktur_jual', isEqualTo: nofaktur).get();
+                        final q = await _firestore
+                            .collection('penjualan')
+                            .where('nofaktur_jual', isEqualTo: nofaktur)
+                            .get();
                         final batch = _firestore.batch();
                         for (var doc in q.docs) {
                           batch.update(doc.reference, {
@@ -727,9 +831,11 @@ class _PenjualanPageState extends State<PenjualanPage> {
                         await batch.commit();
                         Navigator.pop(context);
                         setState(() {});
-                        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Status pembayaran diupdate menjadi Lunas')));
+                        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+                            content: Text('Status pembayaran diupdate menjadi Lunas')));
                       } catch (e) {
-                        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Error update status: $e')));
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(content: Text('Error update status: $e')));
                       }
                     },
               child: const Text('Lunas'),
@@ -748,7 +854,9 @@ class _PenjualanPageState extends State<PenjualanPage> {
           title: const Text('Konfirmasi Hapus'),
           content: Text('Apakah Anda yakin ingin menghapus penjualan #$nofaktur?'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal')),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () async {
@@ -766,7 +874,10 @@ class _PenjualanPageState extends State<PenjualanPage> {
   Future<void> _deletePenjualan(String nofaktur) async {
     try {
       // Get detail items to restore stock
-      final detailSnapshot = await _firestore.collection('detail_penjualan').where('nofaktur_jual', isEqualTo: nofaktur).get();
+      final detailSnapshot = await _firestore
+          .collection('detail_penjualan')
+          .where('nofaktur_jual', isEqualTo: nofaktur)
+          .get();
       final batch = _firestore.batch();
 
       // Restore stock for each item
@@ -776,7 +887,9 @@ class _PenjualanPageState extends State<PenjualanPage> {
 
         // Safe parsing: jumlah may come as int, double or string
         final rawJumlah = data['jumlah'];
-        final int jumlah = (rawJumlah is num) ? rawJumlah.toInt() : int.tryParse(rawJumlah?.toString() ?? '0') ?? 0;
+        final int jumlah = (rawJumlah is num)
+            ? rawJumlah.toInt()
+            : int.tryParse(rawJumlah?.toString() ?? '0') ?? 0;
 
         final satuan = (data['satuan'] ?? '').toString();
 
@@ -810,26 +923,34 @@ class _PenjualanPageState extends State<PenjualanPage> {
       }
 
       // Delete main penjualan document(s)
-      final penjualanQuery = await _firestore.collection('penjualan').where('nofaktur_jual', isEqualTo: nofaktur).get();
+      final penjualanQuery = await _firestore
+          .collection('penjualan')
+          .where('nofaktur_jual', isEqualTo: nofaktur)
+          .get();
       for (var doc in penjualanQuery.docs) {
         batch.delete(doc.reference);
       }
 
       await batch.commit();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Penjualan berhasil dihapus')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Penjualan berhasil dihapus')));
       // Refresh local cache
       _loadData();
     } catch (e, st) {
       debugPrint('Error deleting penjualan $nofaktur: $e');
       debugPrintStack(stackTrace: st);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error menghapus penjualan: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error menghapus penjualan: $e')));
     }
   }
 
   Future<double> _getTotalTerminPaid(Map<String, dynamic> data) async {
     final nofaktur = data['nofaktur_jual']?.toString() ?? '';
     try {
-      final terminSnapshot = await _firestore.collection('pembayaran_termin').where('nofaktur_jual', isEqualTo: nofaktur).get();
+      final terminSnapshot = await _firestore
+          .collection('pembayaran_termin')
+          .where('nofaktur_jual', isEqualTo: nofaktur)
+          .get();
       double totalPaid = 0;
       for (var doc in terminSnapshot.docs) {
         final terminData = doc.data();
@@ -847,14 +968,18 @@ class _PenjualanPageState extends State<PenjualanPage> {
     final nofaktur = data['nofaktur_jual']?.toString() ?? '';
     try {
       // Get detail items
-      final detailSnapshot = await _firestore.collection('detail_penjualan').where('nofaktur_jual', isEqualTo: nofaktur).get();
+      final detailSnapshot = await _firestore
+          .collection('detail_penjualan')
+          .where('nofaktur_jual', isEqualTo: nofaktur)
+          .get();
       final items = detailSnapshot.docs.map((doc) => doc.data()).toList();
 
-      final bytes = await FakturPrintFormat.buildFakturPdf(data, items, _barangList);
+      final bytes =
+          await FakturPrintFormat.buildFakturPdf(data, items, _barangList);
       await Printing.layoutPdf(onLayout: (format) async => bytes);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error mencetak faktur: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error mencetak faktur: $e')));
     }
   }
 }
-
