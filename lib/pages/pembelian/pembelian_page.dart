@@ -20,10 +20,21 @@ class _PembelianPageState extends State<PembelianPage> {
   List<Barang> _barangList = [];
   List<Supplier> _supplierList = [];
 
+  // Variabel untuk draggable FAB
+  Offset _fabPosition = Offset.zero; // Default position
+  bool _isFabDragging = false;
+  final double _fabSize = 56.0;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final screenSize = MediaQuery.of(context).size;
+      setState(() {
+        _fabPosition = Offset(screenSize.width - _fabSize - 100, screenSize.height - _fabSize - 60 - kToolbarHeight);
+      });
+    });
   }
 
   void _loadData() async {
@@ -43,172 +54,229 @@ class _PembelianPageState extends State<PembelianPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => PembelianFormPage(barangList: _barangList, supplierList: _supplierList)));
-          if (result != null && result is Map) {
-            final supplier = result['supplier'] as String;
-            final tanggal = result['tanggal'] as DateTime;
-            final items = result['items'] as List<DetailPembelian>;
-            final statusPembayaran = result['status_pembayaran'] as String? ?? 'Belum Lunas';
-            final docStatus = result['status'] as String? ?? 'Draft';
-            final jatuhTempo = result['jatuh_tempo'] as DateTime?;
-            _savePembelian(supplier, tanggal, items, statusPembayaran, docStatus, jatuhTempo);
-          }
-        },
-        child: const Icon(Icons.add),
-        tooltip: 'Tambah Pembelian',
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
               children: [
-                const Text(
-                  'Transaksi Pembelian',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    const Text(
+                      'Transaksi Pembelian',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 56), // reserve space for FAB
+                  ],
                 ),
-                const Spacer(),
-                const SizedBox(width: 56), // reserve space for FAB
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _firestore.collection('pembelian').snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  }
+                const SizedBox(height: 16),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: _firestore.collection('pembelian').snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(child: Text('Error: ${snapshot.error}'));
+                      }
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                  var pembelianList = snapshot.data!.docs;
+                      var pembelianList = snapshot.data!.docs;
 
-                  return ListView.builder(
-                    itemCount: pembelianList.length,
-                    itemBuilder: (context, index) {
-                      var data = pembelianList[index].data() as Map<String, dynamic>;
-                      final idBeli = data['id_beli']?.toString() ?? '';
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ExpansionTile(
-                          leading: const Icon(Icons.shopping_cart, color: Colors.green),
-                          title: Text('Pembelian #${data['id_beli']}'),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Supplier: ${data['kode_supplier']}'),
-                              Text('Tanggal: ${data['tanggal_beli']}'),
-                              Text('Total: Rp ${NumberFormat('#,###').format(data['total_beli'])}'),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Chip(
-                                label: Text(
-                                  data['status'] ?? 'Pending',
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                                backgroundColor: _getStatusColor(data['status']),
+                      return ListView.builder(
+                        itemCount: pembelianList.length,
+                        itemBuilder: (context, index) {
+                          var data = pembelianList[index].data() as Map<String, dynamic>;
+                          final idBeli = data['id_beli']?.toString() ?? '';
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ExpansionTile(
+                              leading: const Icon(Icons.shopping_cart, color: Colors.green),
+                              title: Text('Pembelian #${data['id_beli']}'),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Supplier: ${data['kode_supplier']}'),
+                                  Text('Tanggal: ${data['tanggal_beli']}'),
+                                  Text('Total: Rp ${NumberFormat('#,###').format(data['total_beli'])}'),
+                                ],
                               ),
-                            ],
-                          ),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: FutureBuilder<QuerySnapshot>(
-                                future: _firestore.collection('detail_pembelian').where('id_beli', isEqualTo: idBeli).get(),
-                                builder: (context, snapDetail) {
-                                  if (snapDetail.connectionState == ConnectionState.waiting) {
-                                    return const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Center(child: CircularProgressIndicator()),
-                                    );
-                                  }
-                                  if (snapDetail.hasError) {
-                                    return Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Text('Error: ${snapDetail.error}'),
-                                    );
-                                  }
-
-                                  final details = snapDetail.data?.docs ?? [];
-                                  if (details.isEmpty) {
-                                    return const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('Tidak ada item pembelian'),
-                                    );
-                                  }
-
-                                  return Column(
-                                    children: details.map((d) {
-                                      final m = d.data() as Map<String, dynamic>;
-                                      final kode = m['kode_barang'] ?? '';
-                                      final barang = _barangList.firstWhere(
-                                        (b) => b.kodeBarang == kode,
-                                        orElse: () => Barang(
-                                          kodeBarang: kode,
-                                          namaBarang: kode,
-                                          satuanPcs: 'pcs',
-                                          satuanDus: 'dus',
-                                          isiDus: 1,
-                                          hargaPcs: (m['harga_satuan']?.toDouble() ?? 0.0),
-                                          hargaDus: (m['harga_satuan']?.toDouble() ?? 0.0),
-                                          jumlah: 0,
-                                          hpp: 0.0,
-                                          hppDus: 0.0,
-                                        ),
-                                      );
-                                      final jumlah = m['jumlah'] ?? 0;
-                                      final hargaSatuan = (m['harga_satuan'] ?? 0).toDouble();
-                                      final subtotal = (m['subtotal'] ?? 0).toDouble();
-
-                                      return ListTile(
-                                        title: Text('${barang.namaBarang} (${kode})'),
-                                        subtitle: Text('${NumberFormat('#,###').format(jumlah)} • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
-                                        trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(subtotal)),
-                                      );
-                                    }).toList(),
-                                  );
-                                },
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Chip(
+                                    label: Text(
+                                      data['status'] ?? 'Pending',
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                    backgroundColor: _getStatusColor(data['status']),
+                                  ),
+                                ],
                               ),
-                            ),
-                            ButtonBar(
                               children: [
-                                IconButton(
-                                  icon: const Icon(Icons.visibility, color: Colors.green),
-                                  tooltip: 'Lihat Detail',
-                                  onPressed: () => _showDetailDialog(data),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                  child: FutureBuilder<QuerySnapshot>(
+                                    future: _firestore.collection('detail_pembelian').where('id_beli', isEqualTo: idBeli).get(),
+                                    builder: (context, snapDetail) {
+                                      if (snapDetail.connectionState == ConnectionState.waiting) {
+                                        return const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Center(child: CircularProgressIndicator()),
+                                        );
+                                      }
+                                      if (snapDetail.hasError) {
+                                        return Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Text('Error: ${snapDetail.error}'),
+                                        );
+                                      }
+
+                                      final details = snapDetail.data?.docs ?? [];
+                                      if (details.isEmpty) {
+                                        return const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Text('Tidak ada item pembelian'),
+                                        );
+                                      }
+
+                                      return Column(
+                                        children: details.map((d) {
+                                          final m = d.data() as Map<String, dynamic>;
+                                          final kode = m['kode_barang'] ?? '';
+                                          final barang = _barangList.firstWhere(
+                                            (b) => b.kodeBarang == kode,
+                                            orElse: () => Barang(
+                                              kodeBarang: kode,
+                                              namaBarang: kode,
+                                              satuanPcs: 'pcs',
+                                              satuanDus: 'dus',
+                                              isiDus: 1,
+                                              hargaPcs: (m['harga_satuan']?.toDouble() ?? 0.0),
+                                              hargaDus: (m['harga_satuan']?.toDouble() ?? 0.0),
+                                              jumlah: 0,
+                                              hpp: 0.0,
+                                              hppDus: 0.0,
+                                            ),
+                                          );
+                                          final jumlah = m['jumlah'] ?? 0;
+                                          final hargaSatuan = (m['harga_satuan'] ?? 0).toDouble();
+                                          final subtotal = (m['subtotal'] ?? 0).toDouble();
+
+                                          return ListTile(
+                                            title: Text('${barang.namaBarang} (${kode})'),
+                                            subtitle: Text('${NumberFormat('#,###').format(jumlah)} • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
+                                            trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(subtotal)),
+                                          );
+                                        }).toList(),
+                                      );
+                                    },
+                                  ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  tooltip: 'Hapus Pembelian',
-                                  onPressed: () => _showDeleteDialog(data, idBeli),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.print, color: Colors.blue),
-                                  tooltip: 'Cetak',
-                                  onPressed: () => _printPembelian(data),
+                                ButtonBar(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.visibility, color: Colors.green),
+                                      tooltip: 'Lihat Detail',
+                                      onPressed: () => _showDetailDialog(data),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      tooltip: 'Hapus Pembelian',
+                                      onPressed: () => _showDeleteDialog(data, idBeli),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.print, color: Colors.blue),
+                                      tooltip: 'Cetak',
+                                      onPressed: () => _printPembelian(data),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       );
                     },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Draggable Floating Action Button
+          Positioned(
+            left: _fabPosition.dx,
+            top: _fabPosition.dy,
+            child: GestureDetector(
+              onPanStart: (details) {
+                setState(() {
+                  _isFabDragging = true;
+                });
+              },
+              onPanUpdate: (details) {
+                setState(() {
+                  _fabPosition = Offset(
+                    (_fabPosition.dx + details.delta.dx).clamp(0, screenSize.width - _fabSize),
+                    (_fabPosition.dy + details.delta.dy).clamp(0, screenSize.height - _fabSize),
                   );
-                },
+                });
+              },
+              onPanEnd: (details) {
+                setState(() {
+                  _isFabDragging = false;
+                });
+              },
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PembelianFormPage(
+                      barangList: _barangList,
+                      supplierList: _supplierList,
+                    ),
+                  ),
+                );
+                if (result != null && result is Map) {
+                  final supplier = result['supplier'] as String;
+                  final tanggal = result['tanggal'] as DateTime;
+                  final items = result['items'] as List<DetailPembelian>;
+                  final statusPembayaran = result['status_pembayaran'] as String? ?? 'Belum Lunas';
+                  final docStatus = result['status'] as String? ?? 'Draft';
+                  final jatuhTempo = result['jatuh_tempo'] as DateTime?;
+                  _savePembelian(supplier, tanggal, items, statusPembayaran, docStatus, jatuhTempo);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: _fabSize,
+                height: _fabSize,
+                decoration: BoxDecoration(
+                  color: _isFabDragging ? Colors.blue[700] : Theme.of(context).primaryColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: _isFabDragging ? 10 : 5,
+                      spreadRadius: _isFabDragging ? 2 : 1,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  _isFabDragging ? Icons.drag_handle : Icons.add,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -226,10 +294,8 @@ class _PembelianPageState extends State<PembelianPage> {
     }
   }
 
-
   void _savePembelian(String supplier, DateTime tanggal, List<DetailPembelian> cartItems, String statusPembayaran, String docStatus, DateTime? jatuhTempo) async {
     try {
-
       // Generate pembelian code PBnnnnn/MM/YYYY
       final now = DateTime.now();
       final pembelianId = await CodeGenerator.nextMonthlyCode(_firestore, 'pembelian', 'id_beli', 'PB', 5, now.month, now.year);
@@ -243,13 +309,13 @@ class _PembelianPageState extends State<PembelianPage> {
       // Prepare batch
       final batch = _firestore.batch();
 
-  // Use an auto-generated document id for the Firestore document
-  // because `pembelianId` produced by nextMonthlyCode contains
-  // slashes (e.g. PB00001/11/2025). Using that string as a doc id
-  // would be interpreted as a nested path and can create unexpected
-  // document ids such as '11'. Store the generated code inside the
-  // document data (`id_beli`) instead.
-  final pembelianRef = _firestore.collection('pembelian').doc();
+      // Use an auto-generated document id for the Firestore document
+      // because `pembelianId` produced by nextMonthlyCode contains
+      // slashes (e.g. PB00001/11/2025). Using that string as a doc id
+      // would be interpreted as a nested path and can create unexpected
+      // document ids such as '11'. Store the generated code inside the
+      // document data (`id_beli`) instead.
+      final pembelianRef = _firestore.collection('pembelian').doc();
       final pembelianData = {
         'id_beli': pembelianId,
         'tanggal_beli': DateFormat('yyyy-MM-dd').format(tanggal),
@@ -316,8 +382,6 @@ class _PembelianPageState extends State<PembelianPage> {
     }
   }
 
-  // Stock updates are handled in the write batch when saving pembelian.
-  
   // Stock updates are handled in the write batch when saving pembelian.
 
   void _showDetailDialog(Map<String, dynamic> data) {
@@ -406,38 +470,38 @@ class _PembelianPageState extends State<PembelianPage> {
               onPressed: (data['status'] == 'Lunas')
                   ? null
                   : () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Konfirmasi Pembayaran'),
-                          content: const Text('Tandai pembelian ini sebagai Lunas?'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-                            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Ya, Lunas')),
-                          ],
-                        ),
-                      );
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Konfirmasi Pembayaran'),
+                    content: const Text('Tandai pembelian ini sebagai Lunas?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+                      ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Ya, Lunas')),
+                    ],
+                  ),
+                );
 
-                      if (confirm != true) return;
+                if (confirm != true) return;
 
-                      try {
-                        // Update all pembelian documents that match this id_beli
-                        final q = await _firestore.collection('pembelian').where('id_beli', isEqualTo: idBeli).get();
-                        final batch = _firestore.batch();
-                        for (var doc in q.docs) {
-                          batch.update(doc.reference, {
-                            'status': 'Lunas',
-                            'tanggal_lunas': FieldValue.serverTimestamp(),
-                          });
-                        }
-                        await batch.commit();
-                        Navigator.pop(context);
-                        setState(() {});
-                        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Status pembayaran diupdate menjadi Lunas')));
-                      } catch (e) {
-                        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Error update status: $e')));
-                      }
-                    },
+                try {
+                  // Update all pembelian documents that match this id_beli
+                  final q = await _firestore.collection('pembelian').where('id_beli', isEqualTo: idBeli).get();
+                  final batch = _firestore.batch();
+                  for (var doc in q.docs) {
+                    batch.update(doc.reference, {
+                      'status': 'Lunas',
+                      'tanggal_lunas': FieldValue.serverTimestamp(),
+                    });
+                  }
+                  await batch.commit();
+                  Navigator.pop(context);
+                  setState(() {});
+                  ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Status pembayaran diupdate menjadi Lunas')));
+                } catch (e) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Error update status: $e')));
+                }
+              },
               child: const Text('Lunas'),
             ),
           ],
