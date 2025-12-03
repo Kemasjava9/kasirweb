@@ -107,6 +107,18 @@ class _PenjualanFormPageState extends State<PenjualanFormPage> {
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   validator: (v) => v == null || v.isEmpty ? 'Masukkan jumlah pembayaran' : null,
+                    onChanged: (v) {
+                      final bayar = double.tryParse(v) ?? 0;
+                      if (bayar < _provider.totalBelanja) {
+                        setState(() {
+                          _provider.selectedStatusPembayaran = 'Belum Lunas';
+                        });
+                      } else if (bayar == _provider.totalBelanja) {
+                        setState(() {
+                          _provider.selectedStatusPembayaran = 'Lunas';
+                        });
+                      }
+                    },
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
@@ -333,7 +345,10 @@ class _PenjualanFormPageState extends State<PenjualanFormPage> {
                       isValid: provider.cartItems.isNotEmpty,
                       onFinishTap: () async {
                         if (!_formKey.currentState!.validate()) return;
-                        final result = await provider.savePenjualan(context);
+                        final result = await provider.savePenjualan(
+                          context,
+                          bayar: double.tryParse(_bayarController.text) ?? 0,
+                        );
                         if (result != null) Navigator.pop(context, result);
                       },
                     ),
