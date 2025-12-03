@@ -6,6 +6,7 @@ import '../../models/pembelian_models.dart';
 import '../../utils/code_generator.dart';
 import '../../utils/print_formats/pembelian_print_format.dart';
 import 'pembelian_form_page.dart';
+import 'pembelian_edit_page.dart';
 import 'package:printing/printing.dart';
 
 class PembelianPage extends StatefulWidget {
@@ -184,6 +185,25 @@ class _PembelianPageState extends State<PembelianPage> {
                                       icon: const Icon(Icons.visibility, color: Colors.green),
                                       tooltip: 'Lihat Detail',
                                       onPressed: () => _showDetailDialog(data),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, color: Colors.orange),
+                                      tooltip: 'Edit Pembelian',
+                                      onPressed: () async {
+                                        final result = await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => PembelianEditPage(
+                                              pembelianData: data,
+                                              barangList: _barangList,
+                                              supplierList: _supplierList,
+                                            ),
+                                          ),
+                                        );
+                                        if (result == true) {
+                                          setState(() {});
+                                        }
+                                      },
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.delete, color: Colors.red),

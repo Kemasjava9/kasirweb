@@ -8,6 +8,7 @@ import 'penjualan_form_page.dart';
 import 'package:printing/printing.dart';
 import '../../utils/print_formats/faktur_print_format.dart';
 import '../../utils/print_formats/surat_jalan_print_format.dart';
+import 'penjualan_edit_page.dart';
 
 class PenjualanPage extends StatefulWidget {
   const PenjualanPage({super.key});
@@ -108,27 +109,9 @@ class _PenjualanPageState extends State<PenjualanPage> {
                                     style: const TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                   if (data['status'] == 'Belum Lunas')
-                                    FutureBuilder<double>(
-                                      future: _getTotalTerminPaid(data),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState == ConnectionState.waiting) {
-                                          return const Text(
-                                            'Dibayar: Loading...',
-                                            style: TextStyle(color: Colors.orange, fontSize: 12),
-                                          );
-                                        }
-                                        if (snapshot.hasError) {
-                                          return const Text(
-                                            'Dibayar: Error',
-                                            style: TextStyle(color: Colors.orange, fontSize: 12),
-                                          );
-                                        }
-                                        final totalPaid = snapshot.data ?? 0;
-                                        return Text(
-                                          'Dibayar: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(totalPaid)}',
-                                          style: const TextStyle(color: Colors.orange, fontSize: 12),
-                                        );
-                                      },
+                                    Text(
+                                      'Dibayar: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(double.tryParse(data['bayar']?.toString() ?? '0') ?? 0)}',
+                                      style: const TextStyle(color: Colors.orange, fontSize: 12),
                                     ),
                                 ],
                               ),
@@ -217,6 +200,11 @@ class _PenjualanPageState extends State<PenjualanPage> {
                                       icon: const Icon(Icons.visibility, color: Colors.green),
                                       tooltip: 'Lihat Detail',
                                       onPressed: () => _showDetailDialog(data),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, color: Colors.orange),
+                                      tooltip: 'Edit Penjualan',
+                                      onPressed: () => _navigateToEditPage(data, nofaktur),
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.delete, color: Colors.red),
@@ -405,7 +393,7 @@ class _PenjualanPageState extends State<PenjualanPage> {
             : item.jumlah;
 
         final barangRef = _firestore.collection('barang').doc(item.kodeBarang);
-        batch.update(barangRef, {'jumlah': FieldValue.increment(-stokToReduce)});
+        batch.set(barangRef, {'jumlah': FieldValue.increment(-stokToReduce)}, SetOptions(merge: true));
       }
 
       // Commit the entire batch atomically
@@ -944,26 +932,6 @@ class _PenjualanPageState extends State<PenjualanPage> {
     }
   }
 
-  Future<double> _getTotalTerminPaid(Map<String, dynamic> data) async {
-    final nofaktur = data['nofaktur_jual']?.toString() ?? '';
-    try {
-      final terminSnapshot = await _firestore
-          .collection('pembayaran_termin')
-          .where('nofaktur_jual', isEqualTo: nofaktur)
-          .get();
-      double totalPaid = 0;
-      for (var doc in terminSnapshot.docs) {
-        final terminData = doc.data();
-        if (terminData['status'] == 'Dibayar') {
-          totalPaid += (terminData['jumlah'] ?? 0).toDouble();
-        }
-      }
-      return totalPaid;
-    } catch (e) {
-      return 0;
-    }
-  }
-
   Future<void> _printFaktur(Map<String, dynamic> data) async {
     final nofaktur = data['nofaktur_jual']?.toString() ?? '';
     try {
@@ -981,5 +949,9 @@ class _PenjualanPageState extends State<PenjualanPage> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Error mencetak faktur: $e')));
     }
+  }
+
+  void _navigateToEditPage(Map<String, dynamic> data, String nofaktur) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => PenjualanEditPage(nofakturJual: nofaktur)));
   }
 }

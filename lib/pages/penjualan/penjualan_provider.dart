@@ -142,7 +142,7 @@ class PenjualanProvider extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>?> savePenjualan(BuildContext context, {double? bayar}) async {
+  Future<Map<String, dynamic>?> savePenjualan(BuildContext context) async {
     if (_selectedPelanggan == null) {
       DialogHelper.showSnackBar(
         context,
@@ -170,21 +170,16 @@ class PenjualanProvider extends ChangeNotifier {
       return null;
     }
 
-      // Determine payment status automatically based on bayar vs total
-      final total = _totalBelanja;
-      final double bayarVal = bayar ?? total;
-      final statusPembayaran = bayarVal >= total ? 'Lunas' : 'Belum Lunas';
-
-      return {
-        'pelanggan': _selectedPelanggan,
-        'tanggal': _selectedDate,
-        'cara_bayar': _selectedMetodePembayaran,
-        'status_pembayaran': statusPembayaran,
-        'items': _cartItems.map((e) => e.toMap()).toList(),
-        'sales': _selectedSales,
-        'komisi': _selectedKomisi,
-        'total_bayar': bayarVal,
-      };
+    return {
+      'pelanggan': _selectedPelanggan,
+      'tanggal': _selectedDate,
+      'cara_bayar': _selectedMetodePembayaran,
+      'status_pembayaran': _selectedStatusPembayaran,
+      'items': _cartItems.map((e) => e.toMap()).toList(),
+      'sales': _selectedSales,
+      'komisi': _selectedKomisi,
+      'total_bayar': _totalBelanja,
+    };
   }
 
   void clearCart() {

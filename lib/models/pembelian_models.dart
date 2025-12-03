@@ -40,4 +40,24 @@ class DetailPembelian {
       subtotal: (map['subtotal'] ?? 0).toDouble(),
     );
   }
+
+  DetailPembelian copyWith({
+    String? idDetailBeli,
+    String? idBeli,
+    String? kodeBarang,
+    String? satuan,
+    int? jumlah,
+    double? hargaSatuan,
+    double? subtotal,
+  }) {
+    return DetailPembelian(
+      idDetailBeli: idDetailBeli ?? this.idDetailBeli,
+      idBeli: idBeli ?? this.idBeli,
+      kodeBarang: kodeBarang ?? this.kodeBarang,
+      satuan: satuan ?? this.satuan,
+      jumlah: jumlah ?? this.jumlah,
+      hargaSatuan: hargaSatuan ?? this.hargaSatuan,
+      subtotal: subtotal ?? this.subtotal,
+    );
+  }
 }
