@@ -88,6 +88,37 @@ class _PenjualanPageState extends State<PenjualanPage> {
 
                       var penjualanList = snapshot.data!.docs;
 
+                      // Sort by newest first: use created_at if available, else tanggal_jual
+                      penjualanList.sort((a, b) {
+                        final aData = a.data() as Map<String, dynamic>;
+                        final bData = b.data() as Map<String, dynamic>;
+
+                        DateTime? aDate;
+                        DateTime? bDate;
+
+                        if (aData['created_at'] != null) {
+                          aDate = (aData['created_at'] as Timestamp).toDate();
+                        } else {
+                          try {
+                            aDate = DateFormat('dd-MM-yyyy').parse(aData['tanggal_jual'] ?? '');
+                          } catch (e) {
+                            aDate = DateTime(1900); // Fallback for invalid dates
+                          }
+                        }
+
+                        if (bData['created_at'] != null) {
+                          bDate = (bData['created_at'] as Timestamp).toDate();
+                        } else {
+                          try {
+                            bDate = DateFormat('dd-MM-yyyy').parse(bData['tanggal_jual'] ?? '');
+                          } catch (e) {
+                            bDate = DateTime(1900); // Fallback for invalid dates
+                          }
+                        }
+
+                        return bDate.compareTo(aDate); // Descending order
+                      });
+
                       return ListView.builder(
                         itemCount: penjualanList.length,
                         itemBuilder: (context, index) {
@@ -287,8 +318,10 @@ class _PenjualanPageState extends State<PenjualanPage> {
 
                       final sales = result['sales'] as String?;
                       final komisi = result['komisi'] as String?;
+                      final statusPembayaran = result['status_pembayaran'] as String?;
+                      final bayar = result['bayar'] as double?;
                       await _savePenjualan(
-                          pelanggan, tanggal, caraBayar, items, sales, komisi);
+                          pelanggan, tanggal, caraBayar, items, sales, komisi, statusPembayaran, bayar);
                     } catch (e, st) {
                       // Don't crash the app; show error and log
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -325,7 +358,7 @@ class _PenjualanPageState extends State<PenjualanPage> {
   // _calculateTotal removed; totals are computed in form pages now.
 
   Future<void> _savePenjualan(String pelanggan, DateTime tanggal, String caraBayar,
-      List<DetailPenjualan> cartItems, String? sales, String? komisi) async {
+      List<DetailPenjualan> cartItems, String? sales, String? komisi, String? statusPembayaran, double? bayar) async {
     try {
       // Start a new batch
       final batch = _firestore.batch();
@@ -351,14 +384,15 @@ class _PenjualanPageState extends State<PenjualanPage> {
         'total_jual': total,
         'id_user': 1, // Default user ID
         'nama_sales': sales ?? 'Sales 1',
-        'bayar': total.toString(),
+        'bayar': bayar?.toString() ?? '0',
         'nama_pelanggan': pelangganData.namaPelanggan,
         'cara_bayar': caraBayar,
-        'status': caraBayar.toLowerCase() == 'tunai' ? 'Lunas' : 'Belum Lunas',
+        'status': statusPembayaran ?? 'Belum Lunas',
         'diskon': 0.0,
         'biaya_lain_lain': 0.0,
         'ongkos_kirim': 0.0,
         'komisi': komisi ?? '',
+        'created_at': FieldValue.serverTimestamp(),
       };
 
       // Add penjualan document to batch

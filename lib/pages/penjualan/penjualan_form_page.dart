@@ -55,104 +55,124 @@ class _PenjualanFormPageState extends State<PenjualanFormPage> {
     return showDialog<bool>(
       context: context,
       builder: (context) {
-        
         return ChangeNotifierProvider.value(
           value: _provider,
-          child: AlertDialog(
-          title: const Text('Detail Pembayaran'),
-          content: Form(
-            key: localKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CustomTextField(
-                  controller: _diskonController,
-                  label: 'Diskon (Rp)',
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (v) => _provider.calculateTotal(
-                    diskon: double.tryParse(v) ?? 0,
-                    ongkosKirim: double.tryParse(_ongkosKirimController.text) ?? 0,
-                    biayaLain: double.tryParse(_biayaLainController.text) ?? 0,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                CustomTextField(
-                  controller: _ongkosKirimController,
-                  label: 'Ongkos Kirim (Rp)',
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (v) => _provider.calculateTotal(
-                    diskon: double.tryParse(_diskonController.text) ?? 0,
-                    ongkosKirim: double.tryParse(v) ?? 0,
-                    biayaLain: double.tryParse(_biayaLainController.text) ?? 0,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                CustomTextField(
-                  controller: _biayaLainController,
-                  label: 'Biaya Lain-lain (Rp)',
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (v) => _provider.calculateTotal(
-                    diskon: double.tryParse(_diskonController.text) ?? 0,
-                    ongkosKirim: double.tryParse(_ongkosKirimController.text) ?? 0,
-                    biayaLain: double.tryParse(v) ?? 0,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                CustomTextField(
-                  controller: _bayarController,
-                  label: 'Bayar (Rp)',
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  validator: (v) => v == null || v.isEmpty ? 'Masukkan jumlah pembayaran' : null,
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _provider.selectedMetodePembayaran,
-                  decoration: const InputDecoration(labelText: 'Metode Pembayaran'),
-                  items: _metodePembayaran.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-                  onChanged: (v) => _provider.selectedMetodePembayaran = v,
-                  validator: (v) => v == null ? 'Pilih metode pembayaran' : null,
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _provider.selectedStatusPembayaran,
-                  decoration: const InputDecoration(labelText: 'Status Pembayaran'),
-                  items: _statusPembayaranOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                  onChanged: (v) {
-                    _provider.selectedStatusPembayaran = v;
-                  },
-                  validator: (v) => v == null ? 'Pilih status pembayaran' : null,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Consumer<PenjualanProvider>(
+            builder: (context, provider, _) => AlertDialog(
+              title: const Text('Detail Pembayaran'),
+              content: Form(
+                key: localKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Total Belanja', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text(currency.format(_provider.totalBelanja), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                    CustomTextField(
+                      controller: _diskonController,
+                      label: 'Diskon (Rp)',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (v) => _provider.calculateTotal(
+                        diskon: double.tryParse(v) ?? 0,
+                        ongkosKirim: double.tryParse(_ongkosKirimController.text) ?? 0,
+                        biayaLain: double.tryParse(_biayaLainController.text) ?? 0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    CustomTextField(
+                      controller: _ongkosKirimController,
+                      label: 'Ongkos Kirim (Rp)',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (v) => _provider.calculateTotal(
+                        diskon: double.tryParse(_diskonController.text) ?? 0,
+                        ongkosKirim: double.tryParse(v) ?? 0,
+                        biayaLain: double.tryParse(_biayaLainController.text) ?? 0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    CustomTextField(
+                      controller: _biayaLainController,
+                      label: 'Biaya Lain-lain (Rp)',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (v) => _provider.calculateTotal(
+                        diskon: double.tryParse(_diskonController.text) ?? 0,
+                        ongkosKirim: double.tryParse(_ongkosKirimController.text) ?? 0,
+                        biayaLain: double.tryParse(v) ?? 0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    CustomTextField(
+                      controller: _bayarController,
+                      label: 'Bayar (Rp)',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (v) => v == null || v.isEmpty ? 'Masukkan jumlah pembayaran' : null,
+                      onChanged: (v) => _provider.bayar = double.tryParse(v) ?? 0,
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _provider.selectedMetodePembayaran,
+                      decoration: const InputDecoration(labelText: 'Metode Pembayaran'),
+                      items: _metodePembayaran.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                      onChanged: (v) => _provider.selectedMetodePembayaran = v,
+                      validator: (v) => v == null ? 'Pilih metode pembayaran' : null,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Status Pembayaran', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(_provider.selectedStatusPembayaran ?? 'Belum Lunas', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                      ],
+                    ),
+                    if (_provider.bayar < _provider.totalBelanja) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Kurang', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(currency.format(_provider.totalBelanja - _provider.bayar), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                        ],
+                      ),
+                    ],
+                    if (_provider.kembalian > 0) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Kembalian', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(currency.format(_provider.kembalian), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total Belanja', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(currency.format(_provider.totalBelanja), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                      ],
+                    ),
                   ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+                ElevatedButton(
+                  onPressed: () {
+                    if (localKey.currentState!.validate()) {
+                      _provider.calculateTotal(
+                        diskon: double.tryParse(_diskonController.text) ?? 0,
+                        ongkosKirim: double.tryParse(_ongkosKirimController.text) ?? 0,
+                        biayaLain: double.tryParse(_biayaLainController.text) ?? 0,
+                      );
+                      Navigator.pop(context, true);
+                    }
+                  },
+                  child: const Text('Simpan'),
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
-            ElevatedButton(
-              onPressed: () {
-                if (localKey.currentState!.validate()) {
-                  _provider.calculateTotal(
-                    diskon: double.tryParse(_diskonController.text) ?? 0,
-                    ongkosKirim: double.tryParse(_ongkosKirimController.text) ?? 0,
-                    biayaLain: double.tryParse(_biayaLainController.text) ?? 0,
-                  );
-                  Navigator.pop(context, true);
-                }
-              },
-              child: const Text('Simpan'),
-            ),
-          ],
           ),
         );
       },

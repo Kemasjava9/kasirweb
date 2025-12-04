@@ -97,76 +97,78 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
   Widget build(BuildContext context) {
     return Card(
       elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Total Pembelian Card
-            Card(
-              color: Colors.orange[50],
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Total Pembelian:',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueGrey,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Total Pembelian Card
+              Card(
+                color: Colors.orange[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total Pembelian:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueGrey,
+                        ),
                       ),
-                    ),
-                    Text(
-                      _formatCurrency(_totalPembelian),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red,
+                      Text(
+                        _formatCurrency(_totalPembelian),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Detail Pembelian',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blueGrey[800],
+                    ],
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: _exportToCSV,
-                  icon: const Icon(Icons.download),
-                  label: const Text('Export CSV'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: TextField(
-                decoration: InputDecoration(
-                  labelText: 'Cari Supplier/Barang',
-                  prefixIcon: const Icon(Icons.search),
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                ),
-                onChanged: _filterPurchases,
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildPurchasesTable(),
-          ],
+
+              const SizedBox(height: 16),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Detail Pembelian',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey[800],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _exportToCSV,
+                    icon: const Icon(Icons.download),
+                    label: const Text('Export CSV'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Cari Supplier/Barang',
+                    prefixIcon: const Icon(Icons.search),
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: _filterPurchases,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildPurchasesTable(),
+            ],
+          ),
         ),
       ),
     );
@@ -207,69 +209,66 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _refreshData,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Use table layout for web or wide screens, list for mobile
-          if (kIsWeb || constraints.maxWidth > 600) {
-            return _buildTableView(actualPurchases);
-          } else {
-            return _buildListView(actualPurchases);
-          }
-        },
-      ),
-    );
+    // Use table layout for web, list for mobile (including Android)
+    if (kIsWeb) {
+      return RefreshIndicator(
+        onRefresh: _refreshData,
+        child: _buildTableView(actualPurchases),
+      );
+    } else {
+      return _buildListView(actualPurchases);
+    }
   }
 
   Widget _buildListView(List<Map<String, dynamic>> purchases) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: Column(
-        children: [
-          // Info jumlah data
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Jumlah Data: ${purchases.length}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.blueGrey,
-                  ),
+    return Column(
+      children: [
+        // Info jumlah data
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Jumlah Data: ${purchases.length}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.blueGrey,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Column(
-            children: purchases.map((purchase) {
-              final namaBarang = purchase['nama_barang']?.toString() ?? '';
-              final namaSupplier = purchase['nama_supplier']?.toString() ?? '';
-              final jumlah = NumberFormat('#,###').format(purchase['jumlah'] ?? 0);
-              final hargaSatuan = (purchase['harga_satuan'] ?? 0).toDouble();
-              final subtotal = (purchase['subtotal'] ?? 0).toDouble();
-              final status = purchase['status']?.toString() ?? '-';
-              final tanggalBeli = _formatDate(purchase['tanggal_beli']);
-              final jatuhTempo = _formatDate(purchase['jatuh_tempo']);
+        ),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: purchases.length,
+          itemBuilder: (context, index) {
+            final purchase = purchases[index];
+            final namaBarang = purchase['nama_barang']?.toString() ?? '';
+            final namaSupplier = purchase['nama_supplier']?.toString() ?? '';
+            final jumlah = NumberFormat('#,###').format(purchase['jumlah'] ?? 0);
+            final hargaSatuan = (purchase['harga_satuan'] ?? 0).toDouble();
+            final subtotal = (purchase['subtotal'] ?? 0).toDouble();
+            final status = purchase['status']?.toString() ?? '-';
+            final tanggalBeli = _formatDate(purchase['tanggal_beli']);
+            final jatuhTempo = _formatDate(purchase['jatuh_tempo']);
 
-              return ListTile(
-                title: Text('$namaBarang ($namaSupplier)'),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('$jumlah • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
-                    Text('Status: $status • Tanggal: $tanggalBeli • Jatuh Tempo: $jatuhTempo'),
-                  ],
-                ),
-                trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(subtotal)),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+            return ListTile(
+              title: Text('$namaBarang ($namaSupplier)'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$jumlah • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
+                  Text('Status: $status • Tanggal: $tanggalBeli • Jatuh Tempo: $jatuhTempo'),
+                ],
+              ),
+              trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(subtotal)),
+            );
+          },
+        ),
+      ],
     );
   }
 

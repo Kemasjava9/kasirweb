@@ -20,6 +20,7 @@ class PenjualanProvider extends ChangeNotifier {
   DateTime _selectedDate = DateTime.now();
   final List<DetailPenjualan> _cartItems = [];
   double _totalBelanja = 0;
+  double _bayar = 0;
 
   PenjualanProvider({FirestoreService? firestoreService}) 
     : _firestoreService = firestoreService ?? FirestoreService();
@@ -38,6 +39,17 @@ class PenjualanProvider extends ChangeNotifier {
   DateTime get selectedDate => _selectedDate;
   List<DetailPenjualan> get cartItems => _cartItems;
   double get totalBelanja => _totalBelanja;
+  double get bayar => _bayar;
+
+  double get kembalian => _bayar > _totalBelanja ? _bayar - _totalBelanja : 0;
+
+  void _updateStatus() {
+    if (_bayar < _totalBelanja) {
+      _selectedStatusPembayaran = 'Belum Lunas';
+    } else if (_selectedStatusPembayaran != 'Belum Lunas') {
+      _selectedStatusPembayaran = 'Lunas';
+    }
+  }
 
   // Setters
   set selectedPelanggan(String? value) {
@@ -67,6 +79,16 @@ class PenjualanProvider extends ChangeNotifier {
 
   set selectedDate(DateTime value) {
     _selectedDate = value;
+    notifyListeners();
+  }
+
+  set bayar(double value) {
+    _bayar = value;
+    if (_bayar < _totalBelanja) {
+      _selectedStatusPembayaran = 'Belum Lunas';
+    } else {
+      _selectedStatusPembayaran = 'Lunas';
+    }
     notifyListeners();
   }
 
@@ -175,6 +197,7 @@ class PenjualanProvider extends ChangeNotifier {
       'tanggal': _selectedDate,
       'cara_bayar': _selectedMetodePembayaran,
       'status_pembayaran': _selectedStatusPembayaran,
+      'bayar': _bayar,
       'items': _cartItems.map((e) => e.toMap()).toList(),
       'sales': _selectedSales,
       'komisi': _selectedKomisi,
@@ -194,6 +217,7 @@ class PenjualanProvider extends ChangeNotifier {
     required double biayaLain,
   }) {
     _totalBelanja = _cartItems.fold<double>(0, (sum, item) => sum + item.subtotal) - diskon + ongkosKirim + biayaLain;
+    _updateStatus();
     notifyListeners();
   }
 
