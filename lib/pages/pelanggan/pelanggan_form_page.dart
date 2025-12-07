@@ -3,8 +3,9 @@ import '../../models/models.dart';
 
 class PelangganFormPage extends StatefulWidget {
   final Pelanggan? pelanggan;
+  final String? initialKode;
 
-  const PelangganFormPage({super.key, this.pelanggan});
+  const PelangganFormPage({super.key, this.pelanggan, this.initialKode});
 
   @override
   State<PelangganFormPage> createState() => _PelangganFormPageState();
@@ -20,7 +21,7 @@ class _PelangganFormPageState extends State<PelangganFormPage> {
   @override
   void initState() {
     super.initState();
-    kodeController = TextEditingController(text: widget.pelanggan?.kodePelanggan ?? '');
+    kodeController = TextEditingController(text: widget.pelanggan?.kodePelanggan ?? widget.initialKode ?? '');
     namaController = TextEditingController(text: widget.pelanggan?.namaPelanggan ?? '');
     alamatController = TextEditingController(text: widget.pelanggan?.alamatPelanggan ?? '');
     telpController = TextEditingController(text: widget.pelanggan?.noTelp ?? '');
@@ -46,7 +47,7 @@ class _PelangganFormPageState extends State<PelangganFormPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              TextField(controller: kodeController, decoration: const InputDecoration(labelText: 'Kode Pelanggan')),
+              TextField(controller: kodeController, decoration: const InputDecoration(labelText: 'Kode Pelanggan'), readOnly: widget.pelanggan == null),
               const SizedBox(height: 8),
               TextField(controller: namaController, decoration: const InputDecoration(labelText: 'Nama Pelanggan')),
               const SizedBox(height: 8),

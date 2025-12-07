@@ -127,13 +127,13 @@ class PenjualanProvider extends ChangeNotifier {
       // Load barang
       _barangList = await _firestoreService.getCollection(
         path: 'barang',
-        fromMap: (data) => Barang.fromMap(data),
+        fromMap: (data, id) => Barang.fromMap(data),
       );
 
       // Load pelanggan
       _pelangganList = await _firestoreService.getCollection(
         path: 'pelanggan',
-        fromMap: (data) => Pelanggan.fromMap(data),
+        fromMap: (data, id) => Pelanggan.fromMap(data),
       );
 
       // Load sales

@@ -20,12 +20,14 @@ class _PelangganPageState extends State<PelangganPage> {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
+          // Generate next kode pelanggan
+          final nextKode = await CodeGenerator.nextSequentialCode(_firestore, 'pelanggan', 'kode_pelanggan', 'PL', 4);
           final result = await Navigator.push<Pelanggan?>(
             context,
-            MaterialPageRoute(builder: (_) => const PelangganFormPage()),
+            MaterialPageRoute(builder: (_) => PelangganFormPage(initialKode: nextKode)),
           );
           if (result != null) {
-            _savePelanggan(null, result.kodePelanggan, result.namaPelanggan, 
+            _savePelanggan(null, result.kodePelanggan, result.namaPelanggan,
               result.alamatPelanggan, result.noTelp, result.keterangan);
           }
         },

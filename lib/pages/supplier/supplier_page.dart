@@ -101,7 +101,9 @@ class _SupplierPageState extends State<SupplierPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final result = await Navigator.push<Supplier?>(context, MaterialPageRoute(builder: (_) => const SupplierFormPage()));
+          // Generate next kode supplier
+          final nextKode = await CodeGenerator.nextSequentialCode(_firestore, 'supplier', 'kode_supplier', 'SP', 4);
+          final result = await Navigator.push<Supplier?>(context, MaterialPageRoute(builder: (_) => SupplierFormPage(initialKode: nextKode)));
           if (result != null) {
             await _saveSupplier(null, result.kodeSupplier, result.namaSupplier, result.alamatSupplier, result.telpSupplier);
           }

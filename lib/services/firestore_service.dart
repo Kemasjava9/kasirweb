@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/payment_history_models.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore;
@@ -8,7 +9,7 @@ class FirestoreService {
 
   Future<List<T>> getCollection<T>({
     required String path,
-    required T Function(Map<String, dynamic> data) fromMap,
+    required T Function(Map<String, dynamic> data, String documentId) fromMap,
     Query<Map<String, dynamic>> Function(Query<Map<String, dynamic>> query)? queryBuilder,
   }) async {
     try {
@@ -16,11 +17,27 @@ class FirestoreService {
       if (queryBuilder != null) {
         query = queryBuilder(query);
       }
-      
+
       final snapshot = await query.get();
-      return snapshot.docs.map((doc) => fromMap(doc.data())).toList();
+      return snapshot.docs.map((doc) => fromMap(doc.data(), doc.id)).toList();
     } catch (e) {
       throw Exception('Error getting collection $path: $e');
+    }
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> getDocuments({
+    required String path,
+    Query<Map<String, dynamic>> Function(Query<Map<String, dynamic>> query)? queryBuilder,
+  }) async {
+    try {
+      Query<Map<String, dynamic>> query = _firestore.collection(path);
+      if (queryBuilder != null) {
+        query = queryBuilder(query);
+      }
+
+      return await query.get();
+    } catch (e) {
+      throw Exception('Error getting documents from $path: $e');
     }
   }
 
@@ -76,7 +93,7 @@ class FirestoreService {
 
   Stream<List<T>> streamCollection<T>({
     required String path,
-    required T Function(Map<String, dynamic> data) fromMap,
+    required T Function(Map<String, dynamic> data, String documentId) fromMap,
     Query<Map<String, dynamic>> Function(Query<Map<String, dynamic>> query)? queryBuilder,
   }) {
     try {
@@ -84,12 +101,42 @@ class FirestoreService {
       if (queryBuilder != null) {
         query = queryBuilder(query);
       }
-      
+
       return query.snapshots().map(
-        (snapshot) => snapshot.docs.map((doc) => fromMap(doc.data())).toList()
+        (snapshot) => snapshot.docs.map((doc) => fromMap(doc.data(), doc.id)).toList()
       );
     } catch (e) {
       throw Exception('Error streaming collection $path: $e');
     }
+  }
+
+  Future<void> createPaymentHistory({
+    required String invoiceNumber,
+    required String customerName,
+    required double totalSales,
+    required List<PaymentRecord> payments,
+    required double totalPayment,
+  }) async {
+    final data = {
+      'invoice_number': invoiceNumber,
+      'customer': customerName,
+      'total_sales': totalSales,
+      'payment_history': payments.map((p) => p.toMap()).toList(),
+      'total_payment': totalPayment,
+      'created_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+    };
+
+    await _firestore.collection('payment_history').add(data);
+  }
+
+  Stream<List<PaymentHistory>> streamPaymentHistory() {
+    return _firestore
+        .collection('payment_history')
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => PaymentHistory.fromMap(doc.data(), doc.id))
+            .toList());
   }
 }

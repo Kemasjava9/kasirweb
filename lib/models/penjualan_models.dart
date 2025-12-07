@@ -1,5 +1,6 @@
 // Models for Penjualan (sales) related classes that match the SQL schema
 class Penjualan {
+  final String id;
   final String nofakturJual;
   final String tanggalJual;
   final double totalJual;
@@ -14,6 +15,7 @@ class Penjualan {
   final double ongkosKirim;
 
   Penjualan({
+    required this.id,
     required this.nofakturJual,
     required this.tanggalJual,
     required this.totalJual,
@@ -45,20 +47,21 @@ class Penjualan {
     };
   }
 
-  static Penjualan fromMap(Map<String, dynamic> map) {
+  static Penjualan fromMap(Map<String, dynamic> map, String documentId) {
     return Penjualan(
+      id: documentId,
       nofakturJual: map['nofaktur_jual'] ?? '',
       tanggalJual: map['tanggal_jual'] ?? '',
-      totalJual: (map['total_jual'] ?? 0).toDouble(),
+      totalJual: double.tryParse((map['total_jual'] ?? 0).toString()) ?? 0.0,
       idUser: map['id_user']?.toString() ?? '',
       namaSales: map['nama_sales'] ?? '',
-      bayar: (map['bayar'] ?? 0).toDouble(),
+      bayar: double.tryParse((map['bayar'] ?? 0).toString()) ?? 0.0,
       namaPelanggan: map['nama_pelanggan'] ?? '',
       caraBayar: map['cara_bayar'] ?? '',
       status: map['status'] ?? '',
-      diskon: (map['diskon'] ?? 0).toDouble(),
-      biayaLainLain: (map['biaya_lain_lain'] ?? 0).toDouble(),
-      ongkosKirim: (map['ongkos_kirim'] ?? 0).toDouble(),
+      diskon: double.tryParse((map['diskon'] ?? 0).toString()) ?? 0.0,
+      biayaLainLain: double.tryParse((map['biaya_lain_lain'] ?? 0).toString()) ?? 0.0,
+      ongkosKirim: double.tryParse((map['ongkos_kirim'] ?? 0).toString()) ?? 0.0,
     );
   }
 }
@@ -107,11 +110,11 @@ class DetailPenjualan {
       idDetailJual: map['id_detail_jual'] ?? '',
       nofakturJual: map['nofaktur_jual'] ?? '',
       kodeBarang: map['kode_barang'] ?? '',
-      jumlah: (map['jumlah'] ?? 0).toInt(),
-      hargaSatuan: (map['harga_satuan'] ?? 0).toDouble(),
-      subtotal: (map['subtotal'] ?? 0).toDouble(),
+      jumlah: int.tryParse((map['jumlah'] ?? 0).toString()) ?? 0,
+      hargaSatuan: double.tryParse((map['harga_satuan'] ?? 0).toString()) ?? 0.0,
+      subtotal: double.tryParse((map['subtotal'] ?? 0).toString()) ?? 0.0,
       satuan: map['satuan'] ?? '',
-      nilaiKomisi: (map['nilai_komisi'] ?? 0).toDouble(),
+      nilaiKomisi: double.tryParse((map['nilai_komisi'] ?? 0).toString()) ?? 0.0,
       namaKomisi: map['nama_komisi'] ?? '',
     );
   }

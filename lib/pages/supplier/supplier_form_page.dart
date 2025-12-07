@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/models.dart';
+import '../../utils/code_generator.dart';
 
 class SupplierFormPage extends StatefulWidget {
   final Supplier? supplier;
+  final String? initialKode;
 
-  const SupplierFormPage({super.key, this.supplier});
+  const SupplierFormPage({super.key, this.supplier, this.initialKode});
 
   @override
   State<SupplierFormPage> createState() => _SupplierFormPageState();
@@ -19,7 +22,7 @@ class _SupplierFormPageState extends State<SupplierFormPage> {
   @override
   void initState() {
     super.initState();
-    kodeController = TextEditingController(text: widget.supplier?.kodeSupplier ?? '');
+    kodeController = TextEditingController(text: widget.supplier?.kodeSupplier ?? widget.initialKode ?? '');
     namaController = TextEditingController(text: widget.supplier?.namaSupplier ?? '');
     alamatController = TextEditingController(text: widget.supplier?.alamatSupplier ?? '');
     telpController = TextEditingController(text: widget.supplier?.telpSupplier ?? '');
@@ -48,6 +51,7 @@ class _SupplierFormPageState extends State<SupplierFormPage> {
               TextField(
                 controller: kodeController,
                 decoration: const InputDecoration(labelText: 'Kode Supplier'),
+                readOnly: widget.supplier == null,
               ),
               const SizedBox(height: 8),
               TextField(

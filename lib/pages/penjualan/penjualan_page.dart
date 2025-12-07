@@ -1,3 +1,4 @@
+import 'package:androidweb/pages/pembayaran/dialogriwayat.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -227,6 +228,55 @@ class _PenjualanPageState extends State<PenjualanPage> {
                                 ),
                                 ButtonBar(
                                   children: [
+                                    if ((double.tryParse(data['bayar']?.toString() ?? '0') ?? 0) < (data['total_jual']?.toDouble() ?? 0))
+                                      IconButton(
+                                        icon: const Icon(Icons.payment, color: Colors.purple),
+                                        tooltip: 'Riwayat Pembayaran',
+                                        onPressed: () async {
+                                          try {
+                                            final riwayatSnapshot = await _firestore
+                                                .collection('riwayat_pembayaran')
+                                                .where('nofaktur_jual', isEqualTo: nofaktur)
+                                                .get();
+                                            final riwayatPembayaranList = riwayatSnapshot.docs
+                                                .map((doc) => doc.data())
+                                                .toList();
+                                            if (mounted) {
+                                              await DialogRiwayatPembayaran.show(context, riwayatPembayaranList, nofaktur: nofaktur);
+                                            }
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(content: Text('Error loading payment history: $e')),
+                                              );
+                                            }
+                                          }
+                                        },
+                                      )
+                                    else
+                                      FutureBuilder<QuerySnapshot>(
+                                        future: _firestore
+                                            .collection('riwayat_pembayaran')
+                                            .where('nofaktur_jual', isEqualTo: nofaktur)
+                                            .get(),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState == ConnectionState.waiting) {
+                                            return const CircularProgressIndicator();
+                                          }
+                                          final riwayatPembayaranList = snapshot.data?.docs
+                                              .map((doc) => doc.data() as Map<String, dynamic>)
+                                              .toList() ?? [];
+                                          return TextButton.icon(
+                                            icon: const Icon(Icons.payment, color: Colors.purple),
+                                            label: const Text(''),
+                                            onPressed: riwayatPembayaranList.isEmpty
+                                                ? null
+                                                : () async {
+                                                    await DialogRiwayatPembayaran.show(context, riwayatPembayaranList);
+                                                  },
+                                          );
+                                        },
+                                      ),
                                     IconButton(
                                       icon: const Icon(Icons.visibility, color: Colors.green),
                                       tooltip: 'Lihat Detail',
