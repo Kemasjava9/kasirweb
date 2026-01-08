@@ -31,12 +31,17 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
   Barang? _selectedBarangObj;
   String? _selectedBarangKode;
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _jumlahController = TextEditingController(text: '0');
-  final TextEditingController _hargaController = TextEditingController(text: '0');
+  final TextEditingController _jumlahController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController _hargaController = TextEditingController(
+    text: '0',
+  );
   String _selectedSatuan = 'pcs';
 
   List<DetailPembelian> cartItems = [];
-  List<DetailPembelian> originalItems = []; // To track changes for stock adjustment
+  List<DetailPembelian> originalItems =
+      []; // To track changes for stock adjustment
 
   // For editing existing items
   int? _editingIndex;
@@ -44,7 +49,11 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
   final TextEditingController _editHargaController = TextEditingController();
   String _editSatuan = 'pcs';
 
-  final currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 1);
+  final currency = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 1,
+  );
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   double get total {
@@ -62,15 +71,24 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
   void _loadData() async {
     // Load pembelian data
     selectedSupplier = widget.pembelianData['kode_supplier'];
-    tanggal = DateFormat('yyyy-MM-dd').parse(widget.pembelianData['tanggal_beli']);
-    jatuhTempo = widget.pembelianData['jatuh_tempo'] != null ? DateFormat('yyyy-MM-dd').parse(widget.pembelianData['jatuh_tempo']) : null;
+    tanggal = DateFormat(
+      'yyyy-MM-dd',
+    ).parse(widget.pembelianData['tanggal_beli']);
+    jatuhTempo = widget.pembelianData['jatuh_tempo'] != null
+        ? DateFormat('yyyy-MM-dd').parse(widget.pembelianData['jatuh_tempo'])
+        : null;
     statusPembayaran = widget.pembelianData['status'] ?? 'Belum Lunas';
     status = widget.pembelianData['status_doc'] ?? 'Draft';
 
     // Load detail items
     final idBeli = widget.pembelianData['id_beli'];
-    final detailsSnapshot = await _firestore.collection('detail_pembelian').where('id_beli', isEqualTo: idBeli).get();
-    final details = detailsSnapshot.docs.map((doc) => DetailPembelian.fromMap(doc.data())).toList();
+    final detailsSnapshot = await _firestore
+        .collection('detail_pembelian')
+        .where('id_beli', isEqualTo: idBeli)
+        .get();
+    final details = detailsSnapshot.docs
+        .map((doc) => DetailPembelian.fromMap(doc.data()))
+        .toList();
 
     setState(() {
       cartItems = details;
@@ -84,7 +102,11 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
     final harga = double.tryParse(_hargaController.text) ?? 0;
     if (jumlah <= 0) return;
 
-    final barang = _selectedBarangObj ?? widget.barangList.firstWhere((b) => b.kodeBarang == _selectedBarangKode);
+    final barang =
+        _selectedBarangObj ??
+        widget.barangList.firstWhere(
+          (b) => b.kodeBarang == _selectedBarangKode,
+        );
 
     final subtotal = jumlah * harga;
     final detail = DetailPembelian(
@@ -152,29 +174,70 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
       final idBeli = widget.pembelianData['id_beli'];
       final batch = _firestore.batch();
 
+      // Find supplier name for display fallback
+      final supplierObj = widget.supplierList.firstWhere(
+        (s) => s.kodeSupplier == selectedSupplier,
+        orElse: () => Supplier(
+          kodeSupplier: selectedSupplier ?? '',
+          namaSupplier: selectedSupplier ?? '',
+          alamatSupplier: '',
+          telpSupplier: '',
+        ),
+      );
+
       // Update pembelian document
-      final pembelianRef = _firestore.collection('pembelian').where('id_beli', isEqualTo: idBeli).limit(1).get().then((snap) => snap.docs.first.reference);
+      final pembelianRef = _firestore
+          .collection('pembelian')
+          .where('id_beli', isEqualTo: idBeli)
+          .limit(1)
+          .get()
+          .then((snap) => snap.docs.first.reference);
       final pembelianDoc = await pembelianRef;
       batch.update(pembelianDoc, {
         'tanggal_beli': DateFormat('yyyy-MM-dd').format(tanggal),
         'kode_supplier': selectedSupplier,
+        'nama_supplier': supplierObj.namaSupplier,
         'total_beli': total,
         'status': statusPembayaran,
         'status_doc': status,
-        'jatuh_tempo': jatuhTempo != null ? DateFormat('yyyy-MM-dd').format(jatuhTempo!) : null,
+        'jatuh_tempo': jatuhTempo != null
+            ? DateFormat('yyyy-MM-dd').format(jatuhTempo!)
+            : null,
       });
 
       // Delete old detail items and adjust stock
       for (var item in originalItems) {
-        final detailQuery = await _firestore.collection('detail_pembelian').where('id_detail_beli', isEqualTo: item.idDetailBeli).limit(1).get();
+        final detailQuery = await _firestore
+            .collection('detail_pembelian')
+            .where('id_detail_beli', isEqualTo: item.idDetailBeli)
+            .limit(1)
+            .get();
         if (detailQuery.docs.isNotEmpty) {
           batch.delete(detailQuery.docs.first.reference);
         }
         // Subtract stock
         final barangRef = _firestore.collection('barang').doc(item.kodeBarang);
-        final barangObj = widget.barangList.firstWhere((b) => b.kodeBarang == item.kodeBarang, orElse: () => Barang(kodeBarang: item.kodeBarang, namaBarang: item.kodeBarang, satuanPcs: 'pcs', satuanDus: 'dus', isiDus: 1, hargaPcs: 0, hargaDus: 0, jumlah: 0, hpp: 0, hppDus: 0));
-        final stokToSubtract = (item.satuan == 'dus') ? (item.jumlah * barangObj.isiDus) : item.jumlah;
-        batch.update(barangRef, {'jumlah': FieldValue.increment(-stokToSubtract)});
+        final barangObj = widget.barangList.firstWhere(
+          (b) => b.kodeBarang == item.kodeBarang,
+          orElse: () => Barang(
+            kodeBarang: item.kodeBarang,
+            namaBarang: item.kodeBarang,
+            satuanPcs: 'pcs',
+            satuanDus: 'dus',
+            isiDus: 1,
+            hargaPcs: 0,
+            hargaDus: 0,
+            jumlah: 0,
+            hpp: 0,
+            hppDus: 0,
+          ),
+        );
+        final stokToSubtract = (item.satuan == 'dus')
+            ? (item.jumlah * barangObj.isiDus)
+            : item.jumlah;
+        batch.update(barangRef, {
+          'jumlah': FieldValue.increment(-stokToSubtract),
+        });
       }
 
       // Add new detail items and adjust stock
@@ -183,8 +246,24 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
         batch.set(detailRef, item.toMap());
         // Add stock
         final barangRef = _firestore.collection('barang').doc(item.kodeBarang);
-        final barangObj = widget.barangList.firstWhere((b) => b.kodeBarang == item.kodeBarang, orElse: () => Barang(kodeBarang: item.kodeBarang, namaBarang: item.kodeBarang, satuanPcs: 'pcs', satuanDus: 'dus', isiDus: 1, hargaPcs: 0, hargaDus: 0, jumlah: 0, hpp: 0, hppDus: 0));
-        final stokToAdd = (item.satuan == 'dus') ? (item.jumlah * barangObj.isiDus) : item.jumlah;
+        final barangObj = widget.barangList.firstWhere(
+          (b) => b.kodeBarang == item.kodeBarang,
+          orElse: () => Barang(
+            kodeBarang: item.kodeBarang,
+            namaBarang: item.kodeBarang,
+            satuanPcs: 'pcs',
+            satuanDus: 'dus',
+            isiDus: 1,
+            hargaPcs: 0,
+            hargaDus: 0,
+            jumlah: 0,
+            hpp: 0,
+            hppDus: 0,
+          ),
+        );
+        final stokToAdd = (item.satuan == 'dus')
+            ? (item.jumlah * barangObj.isiDus)
+            : item.jumlah;
         batch.update(barangRef, {'jumlah': FieldValue.increment(stokToAdd)});
       }
 
@@ -195,9 +274,9 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
       );
       Navigator.of(context).pop(true); // Indicate success
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -224,7 +303,9 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: ElevatedButton(
-              onPressed: selectedSupplier != null && cartItems.isNotEmpty ? _saveEdits : null,
+              onPressed: selectedSupplier != null && cartItems.isNotEmpty
+                  ? _saveEdits
+                  : null,
               child: const Text('Simpan'),
             ),
           ),
@@ -246,51 +327,129 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Informasi Pembelian', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const Text(
+                            'Informasi Pembelian',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           const SizedBox(height: 12),
                           TextFormField(
                             readOnly: true,
                             decoration: InputDecoration(
                               labelText: 'Tanggal',
                               prefixIcon: const Icon(Icons.calendar_today),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
                             ),
-                            controller: TextEditingController(text: DateFormat('dd/MM/yyyy').format(tanggal)),
+                            controller: TextEditingController(
+                              text: DateFormat('dd/MM/yyyy').format(tanggal),
+                            ),
                             onTap: () async {
-                              final picked = await showDatePicker(context: context, initialDate: tanggal, firstDate: DateTime(2020), lastDate: DateTime(2100));
-                              if (picked != null) setState(() => tanggal = picked);
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: tanggal,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null)
+                                setState(() => tanggal = picked);
                             },
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
                             value: selectedSupplier,
-                            decoration: InputDecoration(labelText: 'Supplier', border: OutlineInputBorder(borderRadius: BorderRadius.circular(6))),
-                            items: widget.supplierList.map((s) => DropdownMenuItem(value: s.kodeSupplier, child: Text(s.namaSupplier))).toList(),
-                            onChanged: (v) => setState(() => selectedSupplier = v),
+                            decoration: InputDecoration(
+                              labelText: 'Supplier',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            items: widget.supplierList
+                                .map(
+                                  (s) => DropdownMenuItem(
+                                    value: s.kodeSupplier,
+                                    child: Text(s.namaSupplier),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => selectedSupplier = v),
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
                             readOnly: true,
-                            decoration: InputDecoration(labelText: 'Jatuh Tempo', prefixIcon: const Icon(Icons.calendar_today), border: OutlineInputBorder(borderRadius: BorderRadius.circular(6))),
-                            controller: TextEditingController(text: jatuhTempo == null ? '' : DateFormat('dd/MM/yyyy').format(jatuhTempo!)),
+                            decoration: InputDecoration(
+                              labelText: 'Jatuh Tempo',
+                              prefixIcon: const Icon(Icons.calendar_today),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            controller: TextEditingController(
+                              text: jatuhTempo == null
+                                  ? ''
+                                  : DateFormat(
+                                      'dd/MM/yyyy',
+                                    ).format(jatuhTempo!),
+                            ),
                             onTap: () async {
-                              final picked = await showDatePicker(context: context, initialDate: jatuhTempo ?? tanggal, firstDate: DateTime(2020), lastDate: DateTime(2100));
-                              if (picked != null) setState(() => jatuhTempo = picked);
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: jatuhTempo ?? tanggal,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null)
+                                setState(() => jatuhTempo = picked);
                             },
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
                             value: statusPembayaran,
-                            decoration: InputDecoration(labelText: 'Status Pembayaran', border: OutlineInputBorder(borderRadius: BorderRadius.circular(6))),
-                            items: const [DropdownMenuItem(value: 'Belum Lunas', child: Text('Belum Lunas')), DropdownMenuItem(value: 'Lunas', child: Text('Lunas'))],
-                            onChanged: (v) => setState(() => statusPembayaran = v ?? statusPembayaran),
+                            decoration: InputDecoration(
+                              labelText: 'Status Pembayaran',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'Belum Lunas',
+                                child: Text('Belum Lunas'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Lunas',
+                                child: Text('Lunas'),
+                              ),
+                            ],
+                            onChanged: (v) => setState(
+                              () => statusPembayaran = v ?? statusPembayaran,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
                             value: status,
-                            decoration: InputDecoration(labelText: 'Status', border: OutlineInputBorder(borderRadius: BorderRadius.circular(6))),
-                            items: const [DropdownMenuItem(value: 'Draft', child: Text('Draft')), DropdownMenuItem(value: 'Final', child: Text('Final'))],
-                            onChanged: (v) => setState(() => status = v ?? status),
+                            decoration: InputDecoration(
+                              labelText: 'Status',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'Draft',
+                                child: Text('Draft'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Final',
+                                child: Text('Final'),
+                              ),
+                            ],
+                            onChanged: (v) =>
+                                setState(() => status = v ?? status),
                           ),
                         ],
                       ),
@@ -304,77 +463,215 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(children: [
-                            const Expanded(child: Text('Edit Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-                            Text('Total: ${currency.format(total)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          ]),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Edit Item',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                'Total: ${currency.format(total)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 12),
                           Autocomplete<Barang>(
                             displayStringForOption: (b) => b.namaBarang,
                             optionsBuilder: (text) {
-                              if (text.text.isEmpty) return const Iterable<Barang>.empty();
-                              return widget.barangList.where((b) => b.namaBarang.toLowerCase().contains(text.text.toLowerCase()));
-                            },
-                            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                              controller.text = _searchController.text;
-                              controller.selection = TextSelection.collapsed(offset: controller.text.length);
-                              return TextField(
-                                controller: controller,
-                                focusNode: focusNode,
-                                decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: 'Cari & Pilih Produk...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(6))),
-                                onChanged: (v) => _searchController.text = v,
+                              if (text.text.isEmpty)
+                                return const Iterable<Barang>.empty();
+                              return widget.barangList.where(
+                                (b) => b.namaBarang.toLowerCase().contains(
+                                  text.text.toLowerCase(),
+                                ),
                               );
                             },
+                            fieldViewBuilder:
+                                (
+                                  context,
+                                  controller,
+                                  focusNode,
+                                  onFieldSubmitted,
+                                ) {
+                                  controller.text = _searchController.text;
+                                  controller.selection =
+                                      TextSelection.collapsed(
+                                        offset: controller.text.length,
+                                      );
+                                  return TextField(
+                                    controller: controller,
+                                    focusNode: focusNode,
+                                    decoration: InputDecoration(
+                                      prefixIcon: const Icon(Icons.search),
+                                      hintText: 'Cari & Pilih Produk...',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                    onChanged: (v) =>
+                                        _searchController.text = v,
+                                  );
+                                },
                             onSelected: (b) {
                               setState(() {
                                 _selectedBarangObj = b;
                                 _selectedBarangKode = b.kodeBarang;
-                                _hargaController.text = (b.hpp != 0 ? b.hpp : b.hargaPcs).toStringAsFixed(0);
+                                _hargaController.text =
+                                    (b.hpp != 0 ? b.hpp : b.hargaPcs)
+                                        .toStringAsFixed(0);
                                 _searchController.text = b.namaBarang;
                               });
                             },
                           ),
                           const SizedBox(height: 12),
-                          Wrap(spacing: 8, runSpacing: 8, children: [
-                            SizedBox(
-                              width: isWide ? 120 : double.infinity,
-                              child: TextField(controller: _jumlahController, decoration: InputDecoration(labelText: 'Jumlah', border: OutlineInputBorder(borderRadius: BorderRadius.circular(6))), keyboardType: TextInputType.number),
-                            ),
-                            SizedBox(
-                              width: isWide ? 100 : 140,
-                              child: DropdownButtonFormField<String>(value: _selectedSatuan, decoration: InputDecoration(labelText: 'Satuan', border: OutlineInputBorder(borderRadius: BorderRadius.circular(6))), items: const [DropdownMenuItem(value: 'pcs', child: Text('pcs')), DropdownMenuItem(value: 'dus', child: Text('dus'))], onChanged: (v) => setState(() => _selectedSatuan = v ?? _selectedSatuan)),
-                            ),
-                            SizedBox(
-                              width: isWide ? 200 : double.infinity,
-                              child: TextField(controller: _hargaController, decoration: InputDecoration(labelText: 'Harga Satuan', border: OutlineInputBorder(borderRadius: BorderRadius.circular(6))), keyboardType: TextInputType.number),
-                            ),
-                            SizedBox(width: isWide ? null : double.infinity, child: ElevatedButton.icon(style: ElevatedButton.styleFrom(shape: const StadiumBorder()), onPressed: _selectedBarangKode != null ? _addItem : null, icon: const Icon(Icons.add_shopping_cart), label: const Text('Tambah'))),
-                          ]),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              SizedBox(
+                                width: isWide ? 120 : double.infinity,
+                                child: TextField(
+                                  controller: _jumlahController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Jumlah',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
+                              SizedBox(
+                                width: isWide ? 100 : 140,
+                                child: DropdownButtonFormField<String>(
+                                  value: _selectedSatuan,
+                                  decoration: InputDecoration(
+                                    labelText: 'Satuan',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'pcs',
+                                      child: Text('pcs'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'dus',
+                                      child: Text('dus'),
+                                    ),
+                                  ],
+                                  onChanged: (v) => setState(
+                                    () =>
+                                        _selectedSatuan = v ?? _selectedSatuan,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: isWide ? 200 : double.infinity,
+                                child: TextField(
+                                  controller: _hargaController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Harga Satuan',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
+                              SizedBox(
+                                width: isWide ? null : double.infinity,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    shape: const StadiumBorder(),
+                                  ),
+                                  onPressed: _selectedBarangKode != null
+                                      ? _addItem
+                                      : null,
+                                  icon: const Icon(Icons.add_shopping_cart),
+                                  label: const Text('Tambah'),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 12),
                           const Divider(),
                           const SizedBox(height: 8),
-                          const Text('Daftar Item', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const Text(
+                            'Daftar Item',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           const SizedBox(height: 8),
                           SizedBox(
                             height: 200,
                             child: cartItems.isEmpty
-                                ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.shopping_cart_outlined, size: 48, color: Colors.grey[400]), const SizedBox(height: 8), const Text('Belum ada item', style: TextStyle(color: Colors.grey))]))
+                                ? Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.shopping_cart_outlined,
+                                          size: 48,
+                                          color: Colors.grey[400],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          'Belum ada item',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                      ],
+                                    ),
+                                  )
                                 : ListView.separated(
                                     itemCount: cartItems.length,
-                                    separatorBuilder: (_, __) => const Divider(height: 1),
+                                    separatorBuilder: (_, __) =>
+                                        const Divider(height: 1),
                                     itemBuilder: (context, index) {
                                       final item = cartItems[index];
-                                      final barang = widget.barangList.firstWhere((b) => b.kodeBarang == item.kodeBarang, orElse: () => Barang(kodeBarang: item.kodeBarang, namaBarang: item.kodeBarang, satuanPcs: 'pcs', satuanDus: 'dus', isiDus: 1, hargaPcs: item.hargaSatuan, hargaDus: item.hargaSatuan, jumlah: 0, hpp: item.hargaSatuan, hppDus: item.hargaSatuan));
+                                      final barang = widget.barangList
+                                          .firstWhere(
+                                            (b) =>
+                                                b.kodeBarang == item.kodeBarang,
+                                            orElse: () => Barang(
+                                              kodeBarang: item.kodeBarang,
+                                              namaBarang: item.kodeBarang,
+                                              satuanPcs: 'pcs',
+                                              satuanDus: 'dus',
+                                              isiDus: 1,
+                                              hargaPcs: item.hargaSatuan,
+                                              hargaDus: item.hargaSatuan,
+                                              jumlah: 0,
+                                              hpp: item.hargaSatuan,
+                                              hppDus: item.hargaSatuan,
+                                            ),
+                                          );
 
                                       if (_editingIndex == index) {
                                         return Card(
-                                          margin: const EdgeInsets.symmetric(vertical: 4),
+                                          margin: const EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
                                           child: Padding(
                                             padding: const EdgeInsets.all(8.0),
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
-                                                Text(barang.namaBarang, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                Text(
+                                                  barang.namaBarang,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
                                                 const SizedBox(height: 8),
                                                 Column(
                                                   children: [
@@ -383,47 +680,99 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
                                                         Expanded(
                                                           flex: 2,
                                                           child: TextField(
-                                                            controller: _editJumlahController,
-                                                            decoration: const InputDecoration(labelText: 'Jumlah', border: OutlineInputBorder()),
-                                                            keyboardType: TextInputType.number,
+                                                            controller:
+                                                                _editJumlahController,
+                                                            decoration:
+                                                                const InputDecoration(
+                                                                  labelText:
+                                                                      'Jumlah',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                            keyboardType:
+                                                                TextInputType
+                                                                    .number,
                                                           ),
                                                         ),
-                                                        const SizedBox(width: 8),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
                                                         Expanded(
                                                           flex: 2,
                                                           child: DropdownButtonFormField<String>(
                                                             value: _editSatuan,
-                                                            decoration: const InputDecoration(labelText: 'Satuan', border: OutlineInputBorder()),
+                                                            decoration:
+                                                                const InputDecoration(
+                                                                  labelText:
+                                                                      'Satuan',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
                                                             items: const [
-                                                              DropdownMenuItem(value: 'pcs', child: Text('pcs')),
-                                                              DropdownMenuItem(value: 'dus', child: Text('dus')),
+                                                              DropdownMenuItem(
+                                                                value: 'pcs',
+                                                                child: Text(
+                                                                  'pcs',
+                                                                ),
+                                                              ),
+                                                              DropdownMenuItem(
+                                                                value: 'dus',
+                                                                child: Text(
+                                                                  'dus',
+                                                                ),
+                                                              ),
                                                             ],
-                                                            onChanged: (v) => setState(() => _editSatuan = v ?? _editSatuan),
+                                                            onChanged: (v) =>
+                                                                setState(
+                                                                  () => _editSatuan =
+                                                                      v ??
+                                                                      _editSatuan,
+                                                                ),
                                                           ),
                                                         ),
-                                                        const SizedBox(width: 8),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
                                                         Expanded(
                                                           flex: 3,
                                                           child: TextField(
-                                                            controller: _editHargaController,
-                                                            decoration: const InputDecoration(labelText: 'Harga', border: OutlineInputBorder()),
-                                                            keyboardType: TextInputType.number,
+                                                            controller:
+                                                                _editHargaController,
+                                                            decoration:
+                                                                const InputDecoration(
+                                                                  labelText:
+                                                                      'Harga',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                            keyboardType:
+                                                                TextInputType
+                                                                    .number,
                                                           ),
                                                         ),
                                                       ],
                                                     ),
                                                     const SizedBox(height: 8),
                                                     Row(
-                                                      mainAxisAlignment: MainAxisAlignment.end,
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment.end,
                                                       children: [
                                                         ElevatedButton(
-                                                          onPressed: _saveEditItem,
-                                                          child: const Text('Simpan'),
+                                                          onPressed:
+                                                              _saveEditItem,
+                                                          child: const Text(
+                                                            'Simpan',
+                                                          ),
                                                         ),
-                                                        const SizedBox(width: 8),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
                                                         TextButton(
-                                                          onPressed: _cancelEditItem,
-                                                          child: const Text('Batal'),
+                                                          onPressed:
+                                                              _cancelEditItem,
+                                                          child: const Text(
+                                                            'Batal',
+                                                          ),
                                                         ),
                                                       ],
                                                     ),
@@ -436,18 +785,33 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
                                       } else {
                                         return ListTile(
                                           title: Text(barang.namaBarang),
-                                          subtitle: Text('${item.jumlah} ${item.satuan} x ${currency.format(item.hargaSatuan)}'),
+                                          subtitle: Text(
+                                            '${item.jumlah} ${item.satuan} x ${currency.format(item.hargaSatuan)}',
+                                          ),
                                           trailing: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Text(currency.format(item.subtotal), style: const TextStyle(fontWeight: FontWeight.bold)),
-                                              IconButton(
-                                                icon: const Icon(Icons.edit, color: Colors.blue),
-                                                onPressed: () => _startEditItem(index),
+                                              Text(
+                                                currency.format(item.subtotal),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                               IconButton(
-                                                icon: const Icon(Icons.delete, color: Colors.red),
-                                                onPressed: () => _removeItem(index),
+                                                icon: const Icon(
+                                                  Icons.edit,
+                                                  color: Colors.blue,
+                                                ),
+                                                onPressed: () =>
+                                                    _startEditItem(index),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.delete,
+                                                  color: Colors.red,
+                                                ),
+                                                onPressed: () =>
+                                                    _removeItem(index),
                                               ),
                                             ],
                                           ),
@@ -461,7 +825,21 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
                     ),
                   );
 
-                  return isWide ? Row(children: [Expanded(flex: 4, child: infoCard), const SizedBox(width: 12), Expanded(flex: 6, child: itemsCard)]) : Column(children: [infoCard, const SizedBox(height: 8), itemsCard]);
+                  return isWide
+                      ? Row(
+                          children: [
+                            Expanded(flex: 4, child: infoCard),
+                            const SizedBox(width: 12),
+                            Expanded(flex: 6, child: itemsCard),
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            infoCard,
+                            const SizedBox(height: 8),
+                            itemsCard,
+                          ],
+                        );
                 },
               ),
             ),
@@ -473,11 +851,25 @@ class _PembelianEditPageState extends State<PembelianEditPage> {
                 padding: const EdgeInsets.all(12.0),
                 child: Row(
                   children: [
-                    Expanded(child: Text('Total: ${currency.format(total)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-                    TextButton(onPressed: () => Navigator.of(context).pop(null), child: const Text('Batal')),
+                    Expanded(
+                      child: Text(
+                        'Total: ${currency.format(total)}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(null),
+                      child: const Text('Batal'),
+                    ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: selectedSupplier != null && cartItems.isNotEmpty ? _saveEdits : null,
+                      onPressed:
+                          selectedSupplier != null && cartItems.isNotEmpty
+                          ? _saveEdits
+                          : null,
                       child: const Text('Simpan Perubahan'),
                     ),
                   ],

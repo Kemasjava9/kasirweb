@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'users_page.dart';
 import 'sales_page.dart';
 import 'komisi_page.dart';
+import 'firestore_debug_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -68,7 +69,24 @@ class SettingsPage extends StatelessWidget {
                 textStyle: const TextStyle(fontSize: 18),
               ),
             ),
-
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FirestoreDebugPage()),
+                );
+              },
+              icon: const Icon(Icons.bug_report),
+              label: const Text('Debug Firestore'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.all(16),
+                textStyle: const TextStyle(fontSize: 18),
+                backgroundColor: Colors.orange,
+              ),
+            ),
           ],
         ),
       ),

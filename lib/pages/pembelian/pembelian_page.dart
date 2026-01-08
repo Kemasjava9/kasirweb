@@ -26,6 +26,10 @@ class _PembelianPageState extends State<PembelianPage> {
   bool _isFabDragging = false;
   final double _fabSize = 56.0;
 
+  // Variabel untuk filter dan pencarian
+  String _selectedStatus = 'Semua';
+  String _searchText = '';
+
   @override
   void initState() {
     super.initState();
@@ -33,7 +37,10 @@ class _PembelianPageState extends State<PembelianPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final screenSize = MediaQuery.of(context).size;
       setState(() {
-        _fabPosition = Offset(screenSize.width - _fabSize - 100, screenSize.height - _fabSize - 60 - kToolbarHeight);
+        _fabPosition = Offset(
+          screenSize.width - _fabSize - 100,
+          screenSize.height - _fabSize - 60 - kToolbarHeight,
+        );
       });
     });
   }
@@ -51,12 +58,13 @@ class _PembelianPageState extends State<PembelianPage> {
         return Supplier.fromMap(doc.data());
       }).toList();
     });
+    print('Supplier list loaded: $_supplierList');
   }
 
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    
+
     return Scaffold(
       body: Stack(
         children: [
@@ -68,11 +76,61 @@ class _PembelianPageState extends State<PembelianPage> {
                   children: [
                     const Text(
                       'Transaksi Pembelian',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const Spacer(),
                     const SizedBox(width: 56), // reserve space for FAB
                   ],
+                ),
+                const SizedBox(height: 16),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 180,
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedStatus,
+                          decoration: const InputDecoration(
+                            labelText: 'Status',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          items: ['Semua', 'Lunas', 'Belum Lunas']
+                              .map((status) => DropdownMenuItem(
+                                    value: status,
+                                    child: Text(status),
+                                  ))
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedStatus = value!;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      SizedBox(
+                        width: 180,
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Cari Supplier atau ID Beli',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            prefixIcon: Icon(Icons.search),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              _searchText = value;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
@@ -87,24 +145,79 @@ class _PembelianPageState extends State<PembelianPage> {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      var pembelianList = snapshot.data!.docs;
+                      var pembelianList = snapshot.data!.docs.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final status = data['status']?.toString() ?? '';
+                        final idBeli = data['id_beli']?.toString() ?? '';
+                        final kodeSupplier = data['kode_supplier']?.toString() ?? '';
+
+                        // Find supplier name
+                        final supplier = _supplierList.firstWhere(
+                          (s) => s.kodeSupplier.trim().toLowerCase() == kodeSupplier.trim().toLowerCase(),
+                          orElse: () => Supplier(
+                            kodeSupplier: kodeSupplier,
+                            namaSupplier: data['nama_supplier']?.toString() ?? '',
+                            alamatSupplier: '',
+                            telpSupplier: '',
+                          ),
+                        );
+                        final namaSupplier = supplier.namaSupplier;
+
+                        // Filter by status
+                        bool statusMatch = _selectedStatus == 'Semua' ||
+                            (_selectedStatus == 'Lunas' && status == 'Lunas') ||
+                            (_selectedStatus == 'Belum Lunas' && status != 'Lunas');
+
+                        // Filter by search text
+                        bool searchMatch = _searchText.isEmpty ||
+                            idBeli.toLowerCase().contains(_searchText.toLowerCase()) ||
+                            namaSupplier.toLowerCase().contains(_searchText.toLowerCase()) ||
+                            kodeSupplier.toLowerCase().contains(_searchText.toLowerCase());
+
+                        return statusMatch && searchMatch;
+                      }).toList();
 
                       return ListView.builder(
                         itemCount: pembelianList.length,
                         itemBuilder: (context, index) {
-                          var data = pembelianList[index].data() as Map<String, dynamic>;
+                          var data =
+                              pembelianList[index].data()
+                                  as Map<String, dynamic>;
                           final idBeli = data['id_beli']?.toString() ?? '';
+                          final kodeSupplier =
+                              data['kode_supplier']?.toString() ?? '';
+
+                          // Try to find supplier by kode_supplier
+                          final supplier = _supplierList.firstWhere(
+                            (s) =>
+                                s.kodeSupplier.trim().toLowerCase() ==
+                                kodeSupplier.trim().toLowerCase(),
+                            orElse: () => Supplier(
+                              kodeSupplier: kodeSupplier,
+                              namaSupplier:
+                                  data['nama_supplier']?.toString() ??
+                                  'Supplier tidak ditemukan',
+                              alamatSupplier: '',
+                              telpSupplier: '',
+                            ),
+                          );
+                          final namaSupplier = supplier.namaSupplier;
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ExpansionTile(
-                              leading: const Icon(Icons.shopping_cart, color: Colors.green),
+                              leading: const Icon(
+                                Icons.shopping_cart,
+                                color: Colors.green,
+                              ),
                               title: Text('Pembelian #${data['id_beli']}'),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Supplier: ${data['kode_supplier']}'),
+                                  Text('Supplier: $namaSupplier'),
                                   Text('Tanggal: ${data['tanggal_beli']}'),
-                                  Text('Total: Rp ${NumberFormat('#,###').format(data['total_beli'])}'),
+                                  Text(
+                                    'Total: Rp ${NumberFormat('#,###').format(data['total_beli'])}',
+                                  ),
                                 ],
                               ),
                               trailing: Row(
@@ -113,42 +226,60 @@ class _PembelianPageState extends State<PembelianPage> {
                                   Chip(
                                     label: Text(
                                       data['status'] ?? 'Pending',
-                                      style: const TextStyle(color: Colors.white),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
                                     ),
-                                    backgroundColor: _getStatusColor(data['status']),
+                                    backgroundColor: _getStatusColor(
+                                      data['status'],
+                                    ),
                                   ),
                                 ],
                               ),
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0,
+                                  ),
                                   child: FutureBuilder<QuerySnapshot>(
-                                    future: _firestore.collection('detail_pembelian').where('id_beli', isEqualTo: idBeli).get(),
+                                    future: _firestore
+                                        .collection('detail_pembelian')
+                                        .where('id_beli', isEqualTo: idBeli)
+                                        .get(),
                                     builder: (context, snapDetail) {
-                                      if (snapDetail.connectionState == ConnectionState.waiting) {
+                                      if (snapDetail.connectionState ==
+                                          ConnectionState.waiting) {
                                         return const Padding(
                                           padding: EdgeInsets.all(8.0),
-                                          child: Center(child: CircularProgressIndicator()),
+                                          child: Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
                                         );
                                       }
                                       if (snapDetail.hasError) {
                                         return Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Text('Error: ${snapDetail.error}'),
+                                          child: Text(
+                                            'Error: ${snapDetail.error}',
+                                          ),
                                         );
                                       }
 
-                                      final details = snapDetail.data?.docs ?? [];
+                                      final details =
+                                          snapDetail.data?.docs ?? [];
                                       if (details.isEmpty) {
                                         return const Padding(
                                           padding: EdgeInsets.all(8.0),
-                                          child: Text('Tidak ada item pembelian'),
+                                          child: Text(
+                                            'Tidak ada item pembelian',
+                                          ),
                                         );
                                       }
 
                                       return Column(
                                         children: details.map((d) {
-                                          final m = d.data() as Map<String, dynamic>;
+                                          final m =
+                                              d.data() as Map<String, dynamic>;
                                           final kode = m['kode_barang'] ?? '';
                                           final barang = _barangList.firstWhere(
                                             (b) => b.kodeBarang == kode,
@@ -158,21 +289,40 @@ class _PembelianPageState extends State<PembelianPage> {
                                               satuanPcs: 'pcs',
                                               satuanDus: 'dus',
                                               isiDus: 1,
-                                              hargaPcs: (m['harga_satuan']?.toDouble() ?? 0.0),
-                                              hargaDus: (m['harga_satuan']?.toDouble() ?? 0.0),
+                                              hargaPcs:
+                                                  (m['harga_satuan']
+                                                      ?.toDouble() ??
+                                                  0.0),
+                                              hargaDus:
+                                                  (m['harga_satuan']
+                                                      ?.toDouble() ??
+                                                  0.0),
                                               jumlah: 0,
                                               hpp: 0.0,
                                               hppDus: 0.0,
                                             ),
                                           );
                                           final jumlah = m['jumlah'] ?? 0;
-                                          final hargaSatuan = (m['harga_satuan'] ?? 0).toDouble();
-                                          final subtotal = (m['subtotal'] ?? 0).toDouble();
+                                          final hargaSatuan =
+                                              (m['harga_satuan'] ?? 0)
+                                                  .toDouble();
+                                          final subtotal = (m['subtotal'] ?? 0)
+                                              .toDouble();
 
                                           return ListTile(
-                                            title: Text('${barang.namaBarang} (${kode})'),
-                                            subtitle: Text('${NumberFormat('#,###').format(jumlah)} • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}'),
-                                            trailing: Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(subtotal)),
+                                            title: Text(
+                                              '${barang.namaBarang} (${kode})',
+                                            ),
+                                            subtitle: Text(
+                                              '${NumberFormat('#,###').format(jumlah)} • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}',
+                                            ),
+                                            trailing: Text(
+                                              NumberFormat.currency(
+                                                locale: 'id',
+                                                symbol: 'Rp ',
+                                                decimalDigits: 0,
+                                              ).format(subtotal),
+                                            ),
                                           );
                                         }).toList(),
                                       );
@@ -182,12 +332,18 @@ class _PembelianPageState extends State<PembelianPage> {
                                 ButtonBar(
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.visibility, color: Colors.green),
+                                      icon: const Icon(
+                                        Icons.visibility,
+                                        color: Colors.green,
+                                      ),
                                       tooltip: 'Lihat Detail',
                                       onPressed: () => _showDetailDialog(data),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.edit, color: Colors.orange),
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.orange,
+                                      ),
                                       tooltip: 'Edit Pembelian',
                                       onPressed: () async {
                                         final result = await Navigator.push(
@@ -206,12 +362,19 @@ class _PembelianPageState extends State<PembelianPage> {
                                       },
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                      ),
                                       tooltip: 'Hapus Pembelian',
-                                      onPressed: () => _showDeleteDialog(data, idBeli),
+                                      onPressed: () =>
+                                          _showDeleteDialog(data, idBeli),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.print, color: Colors.blue),
+                                      icon: const Icon(
+                                        Icons.print,
+                                        color: Colors.blue,
+                                      ),
                                       tooltip: 'Cetak',
                                       onPressed: () => _printPembelian(data),
                                     ),
@@ -228,7 +391,7 @@ class _PembelianPageState extends State<PembelianPage> {
               ],
             ),
           ),
-          
+
           // Draggable Floating Action Button
           Positioned(
             left: _fabPosition.dx,
@@ -242,8 +405,14 @@ class _PembelianPageState extends State<PembelianPage> {
               onPanUpdate: (details) {
                 setState(() {
                   _fabPosition = Offset(
-                    (_fabPosition.dx + details.delta.dx).clamp(0, screenSize.width - _fabSize),
-                    (_fabPosition.dy + details.delta.dy).clamp(0, screenSize.height - _fabSize),
+                    (_fabPosition.dx + details.delta.dx).clamp(
+                      0,
+                      screenSize.width - _fabSize,
+                    ),
+                    (_fabPosition.dy + details.delta.dy).clamp(
+                      0,
+                      screenSize.height - _fabSize,
+                    ),
                   );
                 });
               },
@@ -266,10 +435,18 @@ class _PembelianPageState extends State<PembelianPage> {
                   final supplier = result['supplier'] as String;
                   final tanggal = result['tanggal'] as DateTime;
                   final items = result['items'] as List<DetailPembelian>;
-                  final statusPembayaran = result['status_pembayaran'] as String? ?? 'Belum Lunas';
+                  final statusPembayaran =
+                      result['status_pembayaran'] as String? ?? 'Belum Lunas';
                   final docStatus = result['status'] as String? ?? 'Draft';
                   final jatuhTempo = result['jatuh_tempo'] as DateTime?;
-                  _savePembelian(supplier, tanggal, items, statusPembayaran, docStatus, jatuhTempo);
+                  _savePembelian(
+                    supplier,
+                    tanggal,
+                    items,
+                    statusPembayaran,
+                    docStatus,
+                    jatuhTempo,
+                  );
                 }
               },
               child: AnimatedContainer(
@@ -277,7 +454,9 @@ class _PembelianPageState extends State<PembelianPage> {
                 width: _fabSize,
                 height: _fabSize,
                 decoration: BoxDecoration(
-                  color: _isFabDragging ? Colors.blue[700] : Theme.of(context).primaryColor,
+                  color: _isFabDragging
+                      ? Colors.blue[700]
+                      : Theme.of(context).primaryColor,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -314,11 +493,26 @@ class _PembelianPageState extends State<PembelianPage> {
     }
   }
 
-  void _savePembelian(String supplier, DateTime tanggal, List<DetailPembelian> cartItems, String statusPembayaran, String docStatus, DateTime? jatuhTempo) async {
+  void _savePembelian(
+    String supplier,
+    DateTime tanggal,
+    List<DetailPembelian> cartItems,
+    String statusPembayaran,
+    String docStatus,
+    DateTime? jatuhTempo,
+  ) async {
     try {
       // Generate pembelian code PBnnnnn/MM/YYYY
       final now = DateTime.now();
-      final pembelianId = await CodeGenerator.nextMonthlyCode(_firestore, 'pembelian', 'id_beli', 'PB', 5, now.month, now.year);
+      final pembelianId = await CodeGenerator.nextMonthlyCode(
+        _firestore,
+        'pembelian',
+        'id_beli',
+        'PB',
+        5,
+        now.month,
+        now.year,
+      );
 
       // Calculate total
       double total = 0;
@@ -326,26 +520,35 @@ class _PembelianPageState extends State<PembelianPage> {
         total += item.subtotal;
       }
 
+      // Find supplier name for display fallback
+      final supplierObj = _supplierList.firstWhere(
+        (s) => s.kodeSupplier == supplier,
+        orElse: () => Supplier(
+          kodeSupplier: supplier,
+          namaSupplier: supplier,
+          alamatSupplier: '',
+          telpSupplier: '',
+        ),
+      );
+
       // Prepare batch
       final batch = _firestore.batch();
-
-      // Use an auto-generated document id for the Firestore document
-      // because `pembelianId` produced by nextMonthlyCode contains
-      // slashes (e.g. PB00001/11/2025). Using that string as a doc id
-      // would be interpreted as a nested path and can create unexpected
-      // document ids such as '11'. Store the generated code inside the
-      // document data (`id_beli`) instead.
       final pembelianRef = _firestore.collection('pembelian').doc();
       final pembelianData = {
         'id_beli': pembelianId,
         'tanggal_beli': DateFormat('yyyy-MM-dd').format(tanggal),
         'kode_supplier': supplier,
+        'nama_supplier': supplierObj.namaSupplier,
         'total_beli': total,
         // Save payment status from form (Lunas / Belum Lunas)
         'status': statusPembayaran,
         // Preserve document creation status (Draft / Final) in a separate field
         'status_doc': docStatus,
-        'jatuh_tempo': jatuhTempo != null ? DateFormat('yyyy-MM-dd').format(jatuhTempo) : DateFormat('yyyy-MM-dd').format(tanggal.add(const Duration(days: 30))),
+        'jatuh_tempo': jatuhTempo != null
+            ? DateFormat('yyyy-MM-dd').format(jatuhTempo)
+            : DateFormat(
+                'yyyy-MM-dd',
+              ).format(tanggal.add(const Duration(days: 30))),
       };
 
       batch.set(pembelianRef, pembelianData);
@@ -383,10 +586,10 @@ class _PembelianPageState extends State<PembelianPage> {
           ),
         );
 
-        final stokToAdd = (item.satuan == 'dus') ? (item.jumlah * barangObj.isiDus) : item.jumlah;
-        batch.update(barangRef, {
-          'jumlah': FieldValue.increment(stokToAdd),
-        });
+        final stokToAdd = (item.satuan == 'dus')
+            ? (item.jumlah * barangObj.isiDus)
+            : item.jumlah;
+        batch.update(barangRef, {'jumlah': FieldValue.increment(stokToAdd)});
       }
 
       // Commit batch
@@ -396,9 +599,9 @@ class _PembelianPageState extends State<PembelianPage> {
         const SnackBar(content: Text('Pembelian berhasil disimpan')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -409,7 +612,13 @@ class _PembelianPageState extends State<PembelianPage> {
     final kodeSupplier = data['kode_supplier']?.toString() ?? '';
     final supplier = _supplierList.firstWhere(
       (s) => s.kodeSupplier == kodeSupplier,
-      orElse: () => Supplier(kodeSupplier: kodeSupplier, namaSupplier: kodeSupplier, alamatSupplier: '', telpSupplier: ''),
+      orElse: () => Supplier(
+        kodeSupplier: kodeSupplier,
+        namaSupplier:
+            data['nama_supplier']?.toString() ?? 'Supplier tidak ditemukan',
+        alamatSupplier: '',
+        telpSupplier: '',
+      ),
     );
     final namaSupplier = supplier.namaSupplier;
     final status = data['status']?.toString() ?? '';
@@ -433,10 +642,16 @@ class _PembelianPageState extends State<PembelianPage> {
                 Text('Status: $status'),
                 Text('Jatuh Tempo: $jatuhTempo'),
                 const SizedBox(height: 16),
-                const Text('Detail Item:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Detail Item:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 FutureBuilder<QuerySnapshot>(
-                  future: _firestore.collection('detail_pembelian').where('id_beli', isEqualTo: idBeli).get(),
+                  future: _firestore
+                      .collection('detail_pembelian')
+                      .where('id_beli', isEqualTo: idBeli)
+                      .get(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -452,7 +667,8 @@ class _PembelianPageState extends State<PembelianPage> {
                     return Column(
                       children: details.map((doc) {
                         final item = doc.data() as Map<String, dynamic>;
-                        final kodeBarang = item['kode_barang']?.toString() ?? '';
+                        final kodeBarang =
+                            item['kode_barang']?.toString() ?? '';
                         final barang = _barangList.firstWhere(
                           (b) => b.kodeBarang == kodeBarang,
                           orElse: () => Barang(
@@ -469,8 +685,16 @@ class _PembelianPageState extends State<PembelianPage> {
                           ),
                         );
                         final namaBarang = barang.namaBarang;
-                        final harga = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(item['harga_satuan'] ?? 0);
-                        final subtotal = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(item['subtotal'] ?? 0);
+                        final harga = NumberFormat.currency(
+                          locale: 'id',
+                          symbol: 'Rp ',
+                          decimalDigits: 1,
+                        ).format(item['harga_satuan'] ?? 0);
+                        final subtotal = NumberFormat.currency(
+                          locale: 'id',
+                          symbol: 'Rp ',
+                          decimalDigits: 0,
+                        ).format(item['subtotal'] ?? 0);
 
                         return ListTile(
                           title: Text(namaBarang),
@@ -485,43 +709,65 @@ class _PembelianPageState extends State<PembelianPage> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
             ElevatedButton(
               onPressed: (data['status'] == 'Lunas')
                   ? null
                   : () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Konfirmasi Pembayaran'),
-                    content: const Text('Tandai pembelian ini sebagai Lunas?'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-                      ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Ya, Lunas')),
-                    ],
-                  ),
-                );
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Konfirmasi Pembayaran'),
+                          content: const Text(
+                            'Tandai pembelian ini sebagai Lunas?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Batal'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Ya, Lunas'),
+                            ),
+                          ],
+                        ),
+                      );
 
-                if (confirm != true) return;
+                      if (confirm != true) return;
 
-                try {
-                  // Update all pembelian documents that match this id_beli
-                  final q = await _firestore.collection('pembelian').where('id_beli', isEqualTo: idBeli).get();
-                  final batch = _firestore.batch();
-                  for (var doc in q.docs) {
-                    batch.update(doc.reference, {
-                      'status': 'Lunas',
-                      'tanggal_lunas': FieldValue.serverTimestamp(),
-                    });
-                  }
-                  await batch.commit();
-                  Navigator.pop(context);
-                  setState(() {});
-                  ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Status pembayaran diupdate menjadi Lunas')));
-                } catch (e) {
-                  ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Error update status: $e')));
-                }
-              },
+                      try {
+                        // Update all pembelian documents that match this id_beli
+                        final q = await _firestore
+                            .collection('pembelian')
+                            .where('id_beli', isEqualTo: idBeli)
+                            .get();
+                        final batch = _firestore.batch();
+                        for (var doc in q.docs) {
+                          batch.update(doc.reference, {
+                            'status': 'Lunas',
+                            'tanggal_lunas': FieldValue.serverTimestamp(),
+                          });
+                        }
+                        await batch.commit();
+                        Navigator.pop(context);
+                        setState(() {});
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Status pembayaran diupdate menjadi Lunas',
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(content: Text('Error update status: $e')),
+                        );
+                      }
+                    },
               child: const Text('Lunas'),
             ),
           ],
@@ -536,9 +782,14 @@ class _PembelianPageState extends State<PembelianPage> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Konfirmasi Hapus'),
-          content: Text('Apakah Anda yakin ingin menghapus pembelian #$idBeli?'),
+          content: Text(
+            'Apakah Anda yakin ingin menghapus pembelian #$idBeli?',
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () async {
@@ -556,7 +807,10 @@ class _PembelianPageState extends State<PembelianPage> {
   Future<void> _deletePembelian(String idBeli) async {
     try {
       // Find detail items
-      final detailSnapshot = await _firestore.collection('detail_pembelian').where('id_beli', isEqualTo: idBeli).get();
+      final detailSnapshot = await _firestore
+          .collection('detail_pembelian')
+          .where('id_beli', isEqualTo: idBeli)
+          .get();
       final batch = _firestore.batch();
 
       // Reduce stock for each item (reverse the increment done when saving pembelian)
@@ -566,7 +820,9 @@ class _PembelianPageState extends State<PembelianPage> {
 
         // Safely parse jumlah as int
         final rawJumlah = data['jumlah'];
-        final int jumlah = (rawJumlah is num) ? rawJumlah.toInt() : int.tryParse(rawJumlah?.toString() ?? '0') ?? 0;
+        final int jumlah = (rawJumlah is num)
+            ? rawJumlah.toInt()
+            : int.tryParse(rawJumlah?.toString() ?? '0') ?? 0;
 
         final satuan = (data['satuan'] ?? 'pcs').toString();
 
@@ -586,7 +842,9 @@ class _PembelianPageState extends State<PembelianPage> {
           ),
         );
 
-        final stokToRestore = (satuan == 'dus') ? (jumlah * barangObj.isiDus) : jumlah;
+        final stokToRestore = (satuan == 'dus')
+            ? (jumlah * barangObj.isiDus)
+            : jumlah;
 
         // Use set with merge so we don't fail if the barang document is missing
         final barangRef = _firestore.collection('barang').doc(kodeBarang);
@@ -599,20 +857,27 @@ class _PembelianPageState extends State<PembelianPage> {
       }
 
       // Delete main pembelian document(s) where id_beli == idBeli
-      final pembelianQuery = await _firestore.collection('pembelian').where('id_beli', isEqualTo: idBeli).get();
+      final pembelianQuery = await _firestore
+          .collection('pembelian')
+          .where('id_beli', isEqualTo: idBeli)
+          .get();
       for (var doc in pembelianQuery.docs) {
         batch.delete(doc.reference);
       }
 
       await batch.commit();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pembelian berhasil dihapus')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pembelian berhasil dihapus')),
+      );
       // Refresh local lists/state
       _loadData();
     } catch (e, st) {
       // Log stacktrace to help debugging
       debugPrint('Error deleting pembelian: $e');
       debugPrintStack(stackTrace: st);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error menghapus pembelian: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error menghapus pembelian: $e')));
     }
   }
 
@@ -620,13 +885,23 @@ class _PembelianPageState extends State<PembelianPage> {
     try {
       final idBeli = data['id_beli']?.toString() ?? '';
       // Get detail items
-      final detailSnapshot = await _firestore.collection('detail_pembelian').where('id_beli', isEqualTo: idBeli).get();
+      final detailSnapshot = await _firestore
+          .collection('detail_pembelian')
+          .where('id_beli', isEqualTo: idBeli)
+          .get();
       final items = detailSnapshot.docs.map((d) => d.data()).toList();
 
-      final bytes = await PembelianPrintFormat.buildPembelianPdf(data, items.cast<Map<String, dynamic>>(), _barangList, _supplierList);
+      final bytes = await PembelianPrintFormat.buildPembelianPdf(
+        data,
+        items.cast<Map<String, dynamic>>(),
+        _barangList,
+        _supplierList,
+      );
       await Printing.layoutPdf(onLayout: (format) async => bytes);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error mencetak pembelian: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error mencetak pembelian: $e')));
     }
   }
 }

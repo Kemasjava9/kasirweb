@@ -26,6 +26,10 @@ class _PenjualanPageState extends State<PenjualanPage> {
   double fabLeft = 0;
   bool fabPositionInitialized = false;
 
+  // Variabel untuk filter dan pencarian
+  String _selectedStatus = 'Semua';
+  String _searchText = '';
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +79,33 @@ class _PenjualanPageState extends State<PenjualanPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 180,
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedStatus,
+                          decoration: const InputDecoration(labelText: 'Status'),
+                          items: ['Semua', 'Lunas', 'Belum Lunas'].map((status) {
+                            return DropdownMenuItem(value: status, child: Text(status));
+                          }).toList(),
+                          onChanged: (value) => setState(() => _selectedStatus = value!),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      SizedBox(
+                        width: 180,
+                        child: TextField(
+                          decoration: const InputDecoration(labelText: 'Cari...'),
+                          onChanged: (value) => setState(() => _searchText = value),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(
                     stream: _firestore.collection('penjualan').snapshots(),
@@ -88,6 +119,25 @@ class _PenjualanPageState extends State<PenjualanPage> {
                       }
 
                       var penjualanList = snapshot.data!.docs;
+
+                      // Filter by status
+                      if (_selectedStatus != 'Semua') {
+                        penjualanList = penjualanList.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return data['status'] == _selectedStatus;
+                        }).toList();
+                      }
+
+                      // Filter by search text
+                      if (_searchText.isNotEmpty) {
+                        penjualanList = penjualanList.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final nofaktur = data['nofaktur_jual']?.toString().toLowerCase() ?? '';
+                          final pelanggan = data['nama_pelanggan']?.toString().toLowerCase() ?? '';
+                          return nofaktur.contains(_searchText.toLowerCase()) ||
+                                 pelanggan.contains(_searchText.toLowerCase());
+                        }).toList();
+                      }
 
                       // Sort by newest first: use created_at if available, else tanggal_jual
                       penjualanList.sort((a, b) {
