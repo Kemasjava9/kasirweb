@@ -22,13 +22,17 @@ class _PembelianPageState extends State<PembelianPage> {
   List<Supplier> _supplierList = [];
 
   // Variabel untuk draggable FAB
-  Offset _fabPosition = Offset.zero; // Default position
+  Offset _fabPosition = Offset.zero;
   bool _isFabDragging = false;
   final double _fabSize = 56.0;
 
   // Variabel untuk filter dan pencarian
   String _selectedStatus = 'Semua';
   String _searchText = '';
+  
+  // Variabel untuk filter bulan - BARU
+  DateTime? _selectedMonth;
+  bool _isMonthFilterActive = false;
 
   @override
   void initState() {
@@ -61,6 +65,111 @@ class _PembelianPageState extends State<PembelianPage> {
     print('Supplier list loaded: $_supplierList');
   }
 
+  // METHOD BARU: Menampilkan dialog pemilihan bulan
+  void _showMonthPickerDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Pilih Bulan'),
+          content: SizedBox(
+            width: 300,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Dropdown Tahun
+                DropdownButtonFormField<int>(
+                  value: _selectedMonth?.year ?? DateTime.now().year,
+                  decoration: const InputDecoration(
+                    labelText: 'Tahun',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: List.generate(5, (index) {
+                    int year = DateTime.now().year - 2 + index;
+                    return DropdownMenuItem<int>(
+                      value: year,
+                      child: Text(year.toString()),
+                    );
+                  }),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedMonth = DateTime(
+                          value,
+                          _selectedMonth?.month ?? DateTime.now().month,
+                        );
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Dropdown Bulan
+                DropdownButtonFormField<int>(
+                  value: _selectedMonth?.month ?? DateTime.now().month,
+                  decoration: const InputDecoration(
+                    labelText: 'Bulan',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 1, child: Text('Januari')),
+                    DropdownMenuItem(value: 2, child: Text('Februari')),
+                    DropdownMenuItem(value: 3, child: Text('Maret')),
+                    DropdownMenuItem(value: 4, child: Text('April')),
+                    DropdownMenuItem(value: 5, child: Text('Mei')),
+                    DropdownMenuItem(value: 6, child: Text('Juni')),
+                    DropdownMenuItem(value: 7, child: Text('Juli')),
+                    DropdownMenuItem(value: 8, child: Text('Agustus')),
+                    DropdownMenuItem(value: 9, child: Text('September')),
+                    DropdownMenuItem(value: 10, child: Text('Oktober')),
+                    DropdownMenuItem(value: 11, child: Text('November')),
+                    DropdownMenuItem(value: 12, child: Text('Desember')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        if (_selectedMonth == null) {
+                          _selectedMonth = DateTime(DateTime.now().year, value);
+                        } else {
+                          _selectedMonth = DateTime(_selectedMonth!.year, value);
+                        }
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _selectedMonth = null;
+                  _isMonthFilterActive = false;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Reset'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _isMonthFilterActive = _selectedMonth != null;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Terapkan'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
@@ -72,6 +181,7 @@ class _PembelianPageState extends State<PembelianPage> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                // Header
                 Row(
                   children: [
                     const Text(
@@ -82,22 +192,26 @@ class _PembelianPageState extends State<PembelianPage> {
                       ),
                     ),
                     const Spacer(),
-                    const SizedBox(width: 56), // reserve space for FAB
+                    const SizedBox(width: 56),
                   ],
                 ),
                 const SizedBox(height: 16),
+                
+                // Filter Section
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
+                      // Filter Status
                       SizedBox(
-                        width: 180,
+                        width: 160,
                         child: DropdownButtonFormField<String>(
                           value: _selectedStatus,
                           decoration: const InputDecoration(
                             labelText: 'Status',
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            isDense: true,
                           ),
                           items: ['Semua', 'Lunas', 'Belum Lunas']
                               .map((status) => DropdownMenuItem(
@@ -112,15 +226,45 @@ class _PembelianPageState extends State<PembelianPage> {
                           },
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 8),
+                      
+                      // Filter Bulan - TOMBOL BARU
                       SizedBox(
-                        width: 180,
+                        width: 140,
+                        child: ElevatedButton.icon(
+                          onPressed: _showMonthPickerDialog,
+                          icon: Icon(
+                            _isMonthFilterActive ? Icons.filter_alt : Icons.filter_alt_outlined,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _isMonthFilterActive 
+                                ? DateFormat('MMM yyyy', 'id').format(_selectedMonth!)
+                                : 'Filter Bulan',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isMonthFilterActive ? Colors.blue : Colors.grey,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      
+                      // Search Field
+                      SizedBox(
+                        width: 220,
                         child: TextField(
                           decoration: const InputDecoration(
-                            labelText: 'Cari Supplier atau ID Beli',
+                            labelText: 'Cari Supplier / ID',
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            prefixIcon: Icon(Icons.search),
+                            prefixIcon: Icon(Icons.search, size: 20),
+                            isDense: true,
                           ),
                           onChanged: (value) {
                             setState(() {
@@ -132,7 +276,54 @@ class _PembelianPageState extends State<PembelianPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                
+                // Indikator Filter Aktif
+                if (_isMonthFilterActive)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.calendar_month, size: 16, color: Colors.blue.shade700),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Menampilkan: ${DateFormat('MMMM yyyy', 'id').format(_selectedMonth!)}',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedMonth = null;
+                              _isMonthFilterActive = false;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.close, size: 14, color: Colors.blue.shade700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                
+                const SizedBox(height: 8),
+                
+                // List Pembelian
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(
                     stream: _firestore.collection('pembelian').snapshots(),
@@ -150,6 +341,19 @@ class _PembelianPageState extends State<PembelianPage> {
                         final status = data['status']?.toString() ?? '';
                         final idBeli = data['id_beli']?.toString() ?? '';
                         final kodeSupplier = data['kode_supplier']?.toString() ?? '';
+                        final tanggalBeli = data['tanggal_beli']?.toString() ?? '';
+
+                        // FILTER BULAN - BARU
+                        bool monthMatch = true;
+                        if (_isMonthFilterActive && _selectedMonth != null) {
+                          try {
+                            final tanggal = DateTime.parse(tanggalBeli);
+                            monthMatch = tanggal.month == _selectedMonth!.month && 
+                                        tanggal.year == _selectedMonth!.year;
+                          } catch (e) {
+                            monthMatch = false;
+                          }
+                        }
 
                         // Find supplier name
                         final supplier = _supplierList.firstWhere(
@@ -174,34 +378,72 @@ class _PembelianPageState extends State<PembelianPage> {
                             namaSupplier.toLowerCase().contains(_searchText.toLowerCase()) ||
                             kodeSupplier.toLowerCase().contains(_searchText.toLowerCase());
 
-                        return statusMatch && searchMatch;
+                        return statusMatch && searchMatch && monthMatch;
                       }).toList();
+
+                      // Sort berdasarkan id_beli (format: PB00001/03/2026)
+                      pembelianList.sort((a, b) {
+                        final idBeliA = (a.data() as Map<String, dynamic>)['id_beli']?.toString() ?? '';
+                        final idBeliB = (b.data() as Map<String, dynamic>)['id_beli']?.toString() ?? '';
+                        
+                        return _compareIdBeli(idBeliB, idBeliA);
+                      });
+
+                      if (pembelianList.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.shopping_cart_outlined,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Tidak ada data pembelian',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              if (_isMonthFilterActive)
+                                TextButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedMonth = null;
+                                      _isMonthFilterActive = false;
+                                    });
+                                  },
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Reset Filter'),
+                                ),
+                            ],
+                          ),
+                        );
+                      }
 
                       return ListView.builder(
                         itemCount: pembelianList.length,
                         itemBuilder: (context, index) {
-                          var data =
-                              pembelianList[index].data()
-                                  as Map<String, dynamic>;
+                          var data = pembelianList[index].data() as Map<String, dynamic>;
                           final idBeli = data['id_beli']?.toString() ?? '';
-                          final kodeSupplier =
-                              data['kode_supplier']?.toString() ?? '';
+                          final kodeSupplier = data['kode_supplier']?.toString() ?? '';
 
                           // Try to find supplier by kode_supplier
                           final supplier = _supplierList.firstWhere(
-                            (s) =>
-                                s.kodeSupplier.trim().toLowerCase() ==
+                            (s) => s.kodeSupplier.trim().toLowerCase() ==
                                 kodeSupplier.trim().toLowerCase(),
                             orElse: () => Supplier(
                               kodeSupplier: kodeSupplier,
-                              namaSupplier:
-                                  data['nama_supplier']?.toString() ??
+                              namaSupplier: data['nama_supplier']?.toString() ??
                                   'Supplier tidak ditemukan',
                               alamatSupplier: '',
                               telpSupplier: '',
                             ),
                           );
                           final namaSupplier = supplier.namaSupplier;
+                          
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ExpansionTile(
@@ -228,27 +470,25 @@ class _PembelianPageState extends State<PembelianPage> {
                                       data['status'] ?? 'Pending',
                                       style: const TextStyle(
                                         color: Colors.white,
+                                        fontSize: 12,
                                       ),
                                     ),
-                                    backgroundColor: _getStatusColor(
-                                      data['status'],
-                                    ),
+                                    backgroundColor: _getStatusColor(data['status']),
+                                    padding: EdgeInsets.zero,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   ),
                                 ],
                               ),
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8.0,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                                   child: FutureBuilder<QuerySnapshot>(
                                     future: _firestore
                                         .collection('detail_pembelian')
                                         .where('id_beli', isEqualTo: idBeli)
                                         .get(),
                                     builder: (context, snapDetail) {
-                                      if (snapDetail.connectionState ==
-                                          ConnectionState.waiting) {
+                                      if (snapDetail.connectionState == ConnectionState.waiting) {
                                         return const Padding(
                                           padding: EdgeInsets.all(8.0),
                                           child: Center(
@@ -259,27 +499,21 @@ class _PembelianPageState extends State<PembelianPage> {
                                       if (snapDetail.hasError) {
                                         return Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Text(
-                                            'Error: ${snapDetail.error}',
-                                          ),
+                                          child: Text('Error: ${snapDetail.error}'),
                                         );
                                       }
 
-                                      final details =
-                                          snapDetail.data?.docs ?? [];
+                                      final details = snapDetail.data?.docs ?? [];
                                       if (details.isEmpty) {
                                         return const Padding(
                                           padding: EdgeInsets.all(8.0),
-                                          child: Text(
-                                            'Tidak ada item pembelian',
-                                          ),
+                                          child: Text('Tidak ada item pembelian'),
                                         );
                                       }
 
                                       return Column(
                                         children: details.map((d) {
-                                          final m =
-                                              d.data() as Map<String, dynamic>;
+                                          final m = d.data() as Map<String, dynamic>;
                                           final kode = m['kode_barang'] ?? '';
                                           final barang = _barangList.firstWhere(
                                             (b) => b.kodeBarang == kode,
@@ -289,32 +523,26 @@ class _PembelianPageState extends State<PembelianPage> {
                                               satuanPcs: 'pcs',
                                               satuanDus: 'dus',
                                               isiDus: 1,
-                                              hargaPcs:
-                                                  (m['harga_satuan']
-                                                      ?.toDouble() ??
-                                                  0.0),
-                                              hargaDus:
-                                                  (m['harga_satuan']
-                                                      ?.toDouble() ??
-                                                  0.0),
+                                              hargaPcs: (m['harga_satuan']?.toDouble() ?? 0.0),
+                                              hargaDus: (m['harga_satuan']?.toDouble() ?? 0.0),
                                               jumlah: 0,
                                               hpp: 0.0,
                                               hppDus: 0.0,
                                             ),
                                           );
                                           final jumlah = m['jumlah'] ?? 0;
-                                          final hargaSatuan =
-                                              (m['harga_satuan'] ?? 0)
-                                                  .toDouble();
-                                          final subtotal = (m['subtotal'] ?? 0)
-                                              .toDouble();
+                                          final hargaSatuan = (m['harga_satuan'] ?? 0).toDouble();
+                                          final subtotal = (m['subtotal'] ?? 0).toDouble();
 
                                           return ListTile(
+                                            dense: true,
                                             title: Text(
                                               '${barang.namaBarang} (${kode})',
+                                              style: const TextStyle(fontSize: 13),
                                             ),
                                             subtitle: Text(
                                               '${NumberFormat('#,###').format(jumlah)} • ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 1).format(hargaSatuan)}',
+                                              style: const TextStyle(fontSize: 12),
                                             ),
                                             trailing: Text(
                                               NumberFormat.currency(
@@ -322,6 +550,10 @@ class _PembelianPageState extends State<PembelianPage> {
                                                 symbol: 'Rp ',
                                                 decimalDigits: 0,
                                               ).format(subtotal),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                              ),
                                             ),
                                           );
                                         }).toList(),
@@ -332,18 +564,12 @@ class _PembelianPageState extends State<PembelianPage> {
                                 ButtonBar(
                                   children: [
                                     IconButton(
-                                      icon: const Icon(
-                                        Icons.visibility,
-                                        color: Colors.green,
-                                      ),
+                                      icon: const Icon(Icons.visibility, color: Colors.green, size: 22),
                                       tooltip: 'Lihat Detail',
                                       onPressed: () => _showDetailDialog(data),
                                     ),
                                     IconButton(
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.orange,
-                                      ),
+                                      icon: const Icon(Icons.edit, color: Colors.orange, size: 22),
                                       tooltip: 'Edit Pembelian',
                                       onPressed: () async {
                                         final result = await Navigator.push(
@@ -362,19 +588,12 @@ class _PembelianPageState extends State<PembelianPage> {
                                       },
                                     ),
                                     IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                      ),
+                                      icon: const Icon(Icons.delete, color: Colors.red, size: 22),
                                       tooltip: 'Hapus Pembelian',
-                                      onPressed: () =>
-                                          _showDeleteDialog(data, idBeli),
+                                      onPressed: () => _showDeleteDialog(data, idBeli),
                                     ),
                                     IconButton(
-                                      icon: const Icon(
-                                        Icons.print,
-                                        color: Colors.blue,
-                                      ),
+                                      icon: const Icon(Icons.print, color: Colors.blue, size: 22),
                                       tooltip: 'Cetak',
                                       onPressed: () => _printPembelian(data),
                                     ),
@@ -435,8 +654,7 @@ class _PembelianPageState extends State<PembelianPage> {
                   final supplier = result['supplier'] as String;
                   final tanggal = result['tanggal'] as DateTime;
                   final items = result['items'] as List<DetailPembelian>;
-                  final statusPembayaran =
-                      result['status_pembayaran'] as String? ?? 'Belum Lunas';
+                  final statusPembayaran = result['status_pembayaran'] as String? ?? 'Belum Lunas';
                   final docStatus = result['status'] as String? ?? 'Draft';
                   final jatuhTempo = result['jatuh_tempo'] as DateTime?;
                   _savePembelian(
@@ -540,15 +758,11 @@ class _PembelianPageState extends State<PembelianPage> {
         'kode_supplier': supplier,
         'nama_supplier': supplierObj.namaSupplier,
         'total_beli': total,
-        // Save payment status from form (Lunas / Belum Lunas)
         'status': statusPembayaran,
-        // Preserve document creation status (Draft / Final) in a separate field
         'status_doc': docStatus,
         'jatuh_tempo': jatuhTempo != null
             ? DateFormat('yyyy-MM-dd').format(jatuhTempo)
-            : DateFormat(
-                'yyyy-MM-dd',
-              ).format(tanggal.add(const Duration(days: 30))),
+            : DateFormat('yyyy-MM-dd').format(tanggal.add(const Duration(days: 30))),
       };
 
       batch.set(pembelianRef, pembelianData);
@@ -568,7 +782,6 @@ class _PembelianPageState extends State<PembelianPage> {
         batch.set(detailRef, detailData);
 
         // Compute stock increment based on selected satuan.
-        // If satuan is 'dus', convert to pcs by multiplying with isiDus.
         final barangRef = _firestore.collection('barang').doc(item.kodeBarang);
         final barangObj = _barangList.firstWhere(
           (b) => b.kodeBarang == item.kodeBarang,
@@ -599,13 +812,11 @@ class _PembelianPageState extends State<PembelianPage> {
         const SnackBar(content: Text('Pembelian berhasil disimpan')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
-
-  // Stock updates are handled in the write batch when saving pembelian.
 
   void _showDetailDialog(Map<String, dynamic> data) {
     final idBeli = data['id_beli']?.toString() ?? '';
@@ -614,8 +825,7 @@ class _PembelianPageState extends State<PembelianPage> {
       (s) => s.kodeSupplier == kodeSupplier,
       orElse: () => Supplier(
         kodeSupplier: kodeSupplier,
-        namaSupplier:
-            data['nama_supplier']?.toString() ?? 'Supplier tidak ditemukan',
+        namaSupplier: data['nama_supplier']?.toString() ?? 'Supplier tidak ditemukan',
         alamatSupplier: '',
         telpSupplier: '',
       ),
@@ -664,44 +874,48 @@ class _PembelianPageState extends State<PembelianPage> {
                       return const Text('Tidak ada item');
                     }
 
-                    return Column(
-                      children: details.map((doc) {
-                        final item = doc.data() as Map<String, dynamic>;
-                        final kodeBarang =
-                            item['kode_barang']?.toString() ?? '';
-                        final barang = _barangList.firstWhere(
-                          (b) => b.kodeBarang == kodeBarang,
-                          orElse: () => Barang(
-                            kodeBarang: kodeBarang,
-                            namaBarang: kodeBarang,
-                            satuanPcs: 'pcs',
-                            satuanDus: 'dus',
-                            isiDus: 1,
-                            hargaPcs: 0.0,
-                            hargaDus: 0.0,
-                            jumlah: 0,
-                            hpp: 0.0,
-                            hppDus: 0.0,
-                          ),
-                        );
-                        final namaBarang = barang.namaBarang;
-                        final harga = NumberFormat.currency(
-                          locale: 'id',
-                          symbol: 'Rp ',
-                          decimalDigits: 1,
-                        ).format(item['harga_satuan'] ?? 0);
-                        final subtotal = NumberFormat.currency(
-                          locale: 'id',
-                          symbol: 'Rp ',
-                          decimalDigits: 0,
-                        ).format(item['subtotal'] ?? 0);
+                    return SizedBox(
+                      height: 200,
+                      child: ListView(
+                        children: details.map((doc) {
+                          final item = doc.data() as Map<String, dynamic>;
+                          final kodeBarang = item['kode_barang']?.toString() ?? '';
+                          final barang = _barangList.firstWhere(
+                            (b) => b.kodeBarang == kodeBarang,
+                            orElse: () => Barang(
+                              kodeBarang: kodeBarang,
+                              namaBarang: kodeBarang,
+                              satuanPcs: 'pcs',
+                              satuanDus: 'dus',
+                              isiDus: 1,
+                              hargaPcs: 0.0,
+                              hargaDus: 0.0,
+                              jumlah: 0,
+                              hpp: 0.0,
+                              hppDus: 0.0,
+                            ),
+                          );
+                          final namaBarang = barang.namaBarang;
+                          final jumlah = item['jumlah'] ?? 0;
+                          final harga = NumberFormat.currency(
+                            locale: 'id',
+                            symbol: 'Rp ',
+                            decimalDigits: 1,
+                          ).format(item['harga_satuan'] ?? 0);
+                          final subtotal = NumberFormat.currency(
+                            locale: 'id',
+                            symbol: 'Rp ',
+                            decimalDigits: 0,
+                          ).format(item['subtotal'] ?? 0);
 
-                        return ListTile(
-                          title: Text(namaBarang),
-                          subtitle: Text('Harga: $harga'),
-                          trailing: Text('Subtotal: $subtotal'),
-                        );
-                      }).toList(),
+                          return ListTile(
+                            dense: true,
+                            title: Text('$namaBarang ($jumlah)'),
+                            subtitle: Text('Harga: $harga'),
+                            trailing: Text('$subtotal'),
+                          );
+                        }).toList(),
+                      ),
                     );
                   },
                 ),
@@ -875,9 +1089,9 @@ class _PembelianPageState extends State<PembelianPage> {
       // Log stacktrace to help debugging
       debugPrint('Error deleting pembelian: $e');
       debugPrintStack(stackTrace: st);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error menghapus pembelian: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error menghapus pembelian: $e')),
+      );
     }
   }
 
@@ -899,9 +1113,28 @@ class _PembelianPageState extends State<PembelianPage> {
       );
       await Printing.layoutPdf(onLayout: (format) async => bytes);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error mencetak pembelian: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error mencetak pembelian: $e')),
+      );
     }
+  }
+
+  int _compareIdBeli(String a, String b) {
+    // Extract the date part (after the last '/')
+    String dateA = a.contains('/') ? a.split('/').sublist(1).join('/') : '';
+    String dateB = b.contains('/') ? b.split('/').sublist(1).join('/') : '';
+    
+    // Compare dates in reverse (newest first)
+    int dateCompare = dateB.compareTo(dateA);
+    if (dateCompare != 0) return dateCompare;
+    
+    // If same date, compare the ID numbers
+    String numA = a.split('/')[0].replaceAll(RegExp(r'[^0-9]'), '');
+    String numB = b.split('/')[0].replaceAll(RegExp(r'[^0-9]'), '');
+    
+    int intA = int.tryParse(numA) ?? 0;
+    int intB = int.tryParse(numB) ?? 0;
+    
+    return intB.compareTo(intA);
   }
 }
