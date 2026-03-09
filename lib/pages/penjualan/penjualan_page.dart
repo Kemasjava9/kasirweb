@@ -29,6 +29,10 @@ class _PenjualanPageState extends State<PenjualanPage> {
   // Variabel untuk filter dan pencarian
   String _selectedStatus = 'Semua';
   String _searchText = '';
+  
+  // Variabel untuk filter bulan - BARU
+  DateTime? _selectedMonth;
+  bool _isMonthFilterActive = false;
 
   @override
   void initState() {
@@ -49,6 +53,111 @@ class _PenjualanPageState extends State<PenjualanPage> {
         return Pelanggan.fromMap(doc.data());
       }).toList();
     });
+  }
+
+  // METHOD BARU: Menampilkan dialog pemilihan bulan
+  void _showMonthPickerDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Pilih Bulan'),
+          content: SizedBox(
+            width: 300,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Dropdown Tahun
+                DropdownButtonFormField<int>(
+                  value: _selectedMonth?.year ?? DateTime.now().year,
+                  decoration: const InputDecoration(
+                    labelText: 'Tahun',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: List.generate(5, (index) {
+                    int year = DateTime.now().year - 2 + index;
+                    return DropdownMenuItem<int>(
+                      value: year,
+                      child: Text(year.toString()),
+                    );
+                  }),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedMonth = DateTime(
+                          value,
+                          _selectedMonth?.month ?? DateTime.now().month,
+                        );
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Dropdown Bulan
+                DropdownButtonFormField<int>(
+                  value: _selectedMonth?.month ?? DateTime.now().month,
+                  decoration: const InputDecoration(
+                    labelText: 'Bulan',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 1, child: Text('Januari')),
+                    DropdownMenuItem(value: 2, child: Text('Februari')),
+                    DropdownMenuItem(value: 3, child: Text('Maret')),
+                    DropdownMenuItem(value: 4, child: Text('April')),
+                    DropdownMenuItem(value: 5, child: Text('Mei')),
+                    DropdownMenuItem(value: 6, child: Text('Juni')),
+                    DropdownMenuItem(value: 7, child: Text('Juli')),
+                    DropdownMenuItem(value: 8, child: Text('Agustus')),
+                    DropdownMenuItem(value: 9, child: Text('September')),
+                    DropdownMenuItem(value: 10, child: Text('Oktober')),
+                    DropdownMenuItem(value: 11, child: Text('November')),
+                    DropdownMenuItem(value: 12, child: Text('Desember')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        if (_selectedMonth == null) {
+                          _selectedMonth = DateTime(DateTime.now().year, value);
+                        } else {
+                          _selectedMonth = DateTime(_selectedMonth!.year, value);
+                        }
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _selectedMonth = null;
+                  _isMonthFilterActive = false;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Reset'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _isMonthFilterActive = _selectedMonth != null;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Terapkan'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -79,33 +188,122 @@ class _PenjualanPageState extends State<PenjualanPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
+                
+                // FILTER SECTION - MODIFIED
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
+                      // Filter Status
                       SizedBox(
-                        width: 180,
+                        width: 150,
                         child: DropdownButtonFormField<String>(
                           value: _selectedStatus,
-                          decoration: const InputDecoration(labelText: 'Status'),
+                          decoration: const InputDecoration(
+                            labelText: 'Status',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            isDense: true,
+                          ),
                           items: ['Semua', 'Lunas', 'Belum Lunas'].map((status) {
                             return DropdownMenuItem(value: status, child: Text(status));
                           }).toList(),
                           onChanged: (value) => setState(() => _selectedStatus = value!),
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 8),
+                      
+                      // Filter Bulan - TOMBOL BARU
                       SizedBox(
-                        width: 180,
+                        width: 140,
+                        child: ElevatedButton.icon(
+                          onPressed: _showMonthPickerDialog,
+                          icon: Icon(
+                            _isMonthFilterActive ? Icons.filter_alt : Icons.filter_alt_outlined,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _isMonthFilterActive 
+                                ? DateFormat('MMM yyyy', 'id').format(_selectedMonth!)
+                                : 'Filter Bulan',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isMonthFilterActive ? Colors.blue : Colors.grey,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      
+                      // Search Field
+                      SizedBox(
+                        width: 200,
                         child: TextField(
-                          decoration: const InputDecoration(labelText: 'Cari...'),
+                          decoration: const InputDecoration(
+                            labelText: 'Cari No Faktur / Pelanggan',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            prefixIcon: Icon(Icons.search, size: 20),
+                            isDense: true,
+                          ),
                           onChanged: (value) => setState(() => _searchText = value),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                
+                // Indikator Filter Aktif - BARU
+                if (_isMonthFilterActive)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.calendar_month, size: 16, color: Colors.blue.shade700),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Menampilkan: ${DateFormat('MMMM yyyy', 'id').format(_selectedMonth!)}',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedMonth = null;
+                              _isMonthFilterActive = false;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.close, size: 14, color: Colors.blue.shade700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                
+                const SizedBox(height: 8),
+                
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(
                     stream: _firestore.collection('penjualan').snapshots(),
@@ -120,24 +318,44 @@ class _PenjualanPageState extends State<PenjualanPage> {
 
                       var penjualanList = snapshot.data!.docs;
 
-                      // Filter by status
-                      if (_selectedStatus != 'Semua') {
-                        penjualanList = penjualanList.where((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          return data['status'] == _selectedStatus;
-                        }).toList();
-                      }
+                      // FILTER LOGIC - MODIFIED
+                      penjualanList = penjualanList.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final status = data['status']?.toString() ?? '';
+                        final nofaktur = data['nofaktur_jual']?.toString().toLowerCase() ?? '';
+                        final pelanggan = data['nama_pelanggan']?.toString().toLowerCase() ?? '';
+                        final tanggalJual = data['tanggal_jual']?.toString() ?? '';
 
-                      // Filter by search text
-                      if (_searchText.isNotEmpty) {
-                        penjualanList = penjualanList.where((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          final nofaktur = data['nofaktur_jual']?.toString().toLowerCase() ?? '';
-                          final pelanggan = data['nama_pelanggan']?.toString().toLowerCase() ?? '';
-                          return nofaktur.contains(_searchText.toLowerCase()) ||
-                                 pelanggan.contains(_searchText.toLowerCase());
-                        }).toList();
-                      }
+                        // Filter by month
+                        bool monthMatch = true;
+                        if (_isMonthFilterActive && _selectedMonth != null) {
+                          try {
+                            // Parse tanggal dengan format dd-MM-yyyy
+                            final tanggal = DateFormat('dd-MM-yyyy').parse(tanggalJual);
+                            monthMatch = tanggal.month == _selectedMonth!.month && 
+                                        tanggal.year == _selectedMonth!.year;
+                          } catch (e) {
+                            // Jika gagal parse, coba format lain
+                            try {
+                              final tanggal = DateTime.parse(tanggalJual);
+                              monthMatch = tanggal.month == _selectedMonth!.month && 
+                                          tanggal.year == _selectedMonth!.year;
+                            } catch (e) {
+                              monthMatch = false;
+                            }
+                          }
+                        }
+
+                        // Filter by status
+                        bool statusMatch = _selectedStatus == 'Semua' || status == _selectedStatus;
+
+                        // Filter by search text
+                        bool searchMatch = _searchText.isEmpty ||
+                            nofaktur.contains(_searchText.toLowerCase()) ||
+                            pelanggan.contains(_searchText.toLowerCase());
+
+                        return monthMatch && statusMatch && searchMatch;
+                      }).toList();
 
                       // Sort by newest first: use created_at if available, else tanggal_jual
                       penjualanList.sort((a, b) {
@@ -169,6 +387,41 @@ class _PenjualanPageState extends State<PenjualanPage> {
 
                         return bDate.compareTo(aDate); // Descending order
                       });
+
+                      // Tampilkan pesan jika tidak ada data
+                      if (penjualanList.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.receipt_long_outlined,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Tidak ada data penjualan',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              if (_isMonthFilterActive)
+                                TextButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedMonth = null;
+                                      _isMonthFilterActive = false;
+                                    });
+                                  },
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Reset Filter'),
+                                ),
+                            ],
+                          ),
+                        );
+                      }
 
                       return ListView.builder(
                         itemCount: penjualanList.length,
