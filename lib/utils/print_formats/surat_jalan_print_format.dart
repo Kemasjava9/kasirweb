@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-
 class SuratJalanPrintFormat {
   static Future<Uint8List> buildSuratJalanPdf(Map<String, dynamic> data) async {
     final pdf = pw.Document();
