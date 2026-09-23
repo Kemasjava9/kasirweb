@@ -8,6 +8,7 @@ import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:universal_html/html.dart' as html;
+import 'laporan_filter.dart';
 
 class CommissionReportWidget extends StatefulWidget {
   const CommissionReportWidget({super.key});
@@ -22,6 +23,7 @@ class _CommissionReportWidgetState extends State<CommissionReportWidget> {
   String _searchQuery = '';
   bool _isLoading = true;
   String? _errorMessage;
+  DateTimeRange? _dateRange;
 
   @override
   void initState() {
@@ -49,9 +51,12 @@ class _CommissionReportWidgetState extends State<CommissionReportWidget> {
     setState(() {
       _searchQuery = query;
       if (query.isEmpty) {
-        _filteredCommissionData = _commissionData;
+        _filteredCommissionData = _commissionData.where((commission) =>
+          commission['is_total'] != true && isReportDateInRange(commission['tanggal'], _dateRange)).toList();
       } else {
         _filteredCommissionData = _commissionData.where((commission) {
+          if (commission['is_total'] == true ||
+              !isReportDateInRange(commission['tanggal'], _dateRange)) return false;
           final kodeBarang = commission['kode_barang']?.toString().toLowerCase() ?? '';
           final namaBarang = commission['nama_barang']?.toString().toLowerCase() ?? '';
           final namaKomisi = commission['nama_komisi']?.toString().toLowerCase() ?? '';
@@ -65,6 +70,11 @@ class _CommissionReportWidgetState extends State<CommissionReportWidget> {
     });
   }
 
+  void _setDateRange(DateTimeRange? range) {
+    setState(() => _dateRange = range);
+    _filterCommission(_searchQuery);
+  }
+
   Future<void> _refreshData() async {
     setState(() {
       _isLoading = true;
@@ -76,9 +86,10 @@ class _CommissionReportWidgetState extends State<CommissionReportWidget> {
   Widget build(BuildContext context) {
     return Card(
       elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -113,9 +124,12 @@ class _CommissionReportWidgetState extends State<CommissionReportWidget> {
               ),
             ),
             const SizedBox(height: 16),
+            ReportDateRangeFilter(range: _dateRange, onChanged: _setDateRange),
+            const SizedBox(height: 16),
             _buildCommissionTable(),
           ],
         ),
+      ),
       ),
     );
   }
@@ -200,6 +214,7 @@ class _CommissionReportWidgetState extends State<CommissionReportWidget> {
                 columns: const [
                   DataColumn(label: Text('Kode Barang', style: TextStyle(fontWeight: FontWeight.bold))),
                   DataColumn(label: Text('Nama Barang', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Tanggal', style: TextStyle(fontWeight: FontWeight.bold))),
                   DataColumn(
                     label: Text('Jumlah', style: TextStyle(fontWeight: FontWeight.bold)),
                     numeric: true,
@@ -220,6 +235,7 @@ class _CommissionReportWidgetState extends State<CommissionReportWidget> {
                     cells: [
                       DataCell(Text(commission['kode_barang']?.toString() ?? '-')),
                       DataCell(Text(commission['nama_barang']?.toString() ?? '-')),
+                      DataCell(Text(commission['tanggal']?.toString() ?? '-')),
                       DataCell(Text(commission['jumlah']?.toString() ?? '0')),
                       DataCell(Text(commission['satuan']?.toString() ?? '-')),
                       DataCell(Text(_formatCurrency(commission['nilai_komisi']))),

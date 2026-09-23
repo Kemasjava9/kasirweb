@@ -12,6 +12,7 @@ import 'package:universal_html/html.dart' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/models.dart';
 import '../../models/pembelian_models.dart';
+import 'laporan_filter.dart';
 
 class PembelianSupplierWidget extends StatefulWidget {
   const PembelianSupplierWidget({super.key});
@@ -27,6 +28,7 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
   bool _isLoading = true;
   String? _errorMessage;
   double _totalPembelian = 0.0; // Variabel untuk menyimpan total pembelian
+  DateTimeRange? _dateRange;
 
   @override
   void initState() {
@@ -71,18 +73,27 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
   void _filterPurchases(String query) {
     setState(() {
       _searchQuery = query;
-      if (query.isEmpty) {
-        _filteredPurchases = _allPurchases;
-      } else {
-        _filteredPurchases = _allPurchases.where((purchase) {
+      _filteredPurchases = _allPurchases.where((purchase) {
+        if (purchase['is_summary'] == true ||
+            !isReportDateInRange(
+              purchase['tanggal_beli_value'] ?? purchase['tanggal_beli'],
+              _dateRange,
+            )) {
+          return false;
+        }
+        if (query.isEmpty) return true;
           final namaSupplier = purchase['nama_supplier']?.toString().toLowerCase() ?? '';
           final namaBarang = purchase['nama_barang']?.toString().toLowerCase() ?? '';
           return namaSupplier.contains(query.toLowerCase()) ||
                  namaBarang.contains(query.toLowerCase());
-        }).toList();
-      }
+      }).toList();
     });
     _calculateTotalPembelian(); // Hitung ulang total setelah filter
+  }
+
+  void _setDateRange(DateTimeRange? range) {
+    setState(() => _dateRange = range);
+    _filterPurchases(_searchQuery);
   }
 
   Future<void> _refreshData() async {
@@ -165,6 +176,8 @@ class _PembelianSupplierWidgetState extends State<PembelianSupplierWidget> {
                   onChanged: _filterPurchases,
                 ),
               ),
+              const SizedBox(height: 16),
+              ReportDateRangeFilter(range: _dateRange, onChanged: _setDateRange),
               const SizedBox(height: 16),
               _buildPurchasesTable(),
             ],

@@ -9,6 +9,7 @@ import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:universal_html/html.dart' as html;
+import 'laporan_filter.dart';
 
 class SalesDetailWidget extends StatefulWidget {
   const SalesDetailWidget({super.key});
@@ -24,6 +25,7 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
   bool _isLoading = true;
   String? _errorMessage;
   double _totalPenjualan = 0.0;
+  DateTimeRange? _dateRange;
 
   @override
   void initState() {
@@ -33,8 +35,8 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
 
   void _calculateTotalPenjualan() {
     double total = 0.0;
-    if (_salesData.isNotEmpty && _salesData.first.containsKey('is_summary')) {
-      total = (_salesData.first['total_penjualan'] as num?)?.toDouble() ?? 0.0;
+    for (final sale in _filteredSalesData) {
+      total += (sale['total_invoice'] as num?)?.toDouble() ?? 0.0;
     }
     setState(() {
       _totalPenjualan = total;
@@ -69,6 +71,7 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
       List<Map<String, dynamic>> dataOnly = _salesData.isNotEmpty && _salesData.first['is_summary'] == true
           ? _salesData.sublist(1)
           : _salesData;
+      dataOnly = dataOnly.where((sale) => isReportDateInRange(sale['Tanggal Jual'], _dateRange)).toList();
 
       if (query.isEmpty) {
         _filteredSalesData = dataOnly;
@@ -96,6 +99,11 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
         }).toList();
       }
     });
+  }
+
+  void _setDateRange(DateTimeRange? range) {
+    setState(() => _dateRange = range);
+    _filterSales(_searchQuery);
   }
 
   Future<void> _refreshData() async {
@@ -143,6 +151,8 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            ReportDateRangeFilter(range: _dateRange, onChanged: _setDateRange),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -221,6 +231,8 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+              ReportDateRangeFilter(range: _dateRange, onChanged: _setDateRange),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -310,8 +322,9 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
       return RefreshIndicator(
         onRefresh: _refreshData,
         child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
             columnSpacing: 20.0,
             columns: const [
               DataColumn(label: Text('No Faktur')),
@@ -384,6 +397,7 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
                 }).toList();
               }
             }).toList(),
+            ),
           ),
         ),
       );
@@ -464,6 +478,9 @@ class _SalesDetailWidgetState extends State<SalesDetailWidget> {
     List<Map<String, dynamic>> dataToExport = _salesData.isNotEmpty && _salesData.first['is_summary'] == true
         ? _salesData.sublist(1)
         : _salesData;
+    dataToExport = dataToExport
+      .where((sale) => isReportDateInRange(sale['Tanggal Jual'], _dateRange))
+      .toList();
 
     if (dataToExport.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

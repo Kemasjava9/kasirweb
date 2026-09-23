@@ -30,10 +30,8 @@ class FakturPrintFormat {
         (previousValue, element) =>
             previousValue + (double.tryParse(element['subtotal']?.toString() ?? '0') ?? 0.0));
 
-    // Ukuran kertas fixed 210mm x 148mm
-    final pageFormat = PdfPageFormat(
-      215 * PdfPageFormat.mm, // Lebar
-      140 * PdfPageFormat.mm, // Tinggi
+    // Gunakan format kertas A5 agar ukuran printer/preview sesuai standar
+    final pageFormat = PdfPageFormat.a5.copyWith(
       marginLeft: 8,
       marginRight: 8,
       marginTop: 8,
@@ -116,12 +114,12 @@ class FakturPrintFormat {
                   verticalInside: pw.BorderSide(width: 0.5),
                 ),
                 columnWidths: {
-                  0: const pw.FixedColumnWidth(25),  // No
-                  1: const pw.FlexColumnWidth(2.5),  // Produk
-                  2: const pw.FixedColumnWidth(45),  // Qty
-                  3: const pw.FixedColumnWidth(35),  // Unit
-                  4: const pw.FixedColumnWidth(80),  // Harga
-                  5: const pw.FixedColumnWidth(80),  // Subtotal
+                  0: const pw.FixedColumnWidth(18),  // No
+                  1: const pw.FlexColumnWidth(2.2),  // Produk
+                  2: const pw.FixedColumnWidth(22),  // Qty
+                  3: const pw.FixedColumnWidth(22),  // Unit
+                  4: const pw.FixedColumnWidth(32),  // Harga
+                  5: const pw.FixedColumnWidth(34),  // Subtotal
                 },
                 defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
                 children: [
@@ -130,34 +128,34 @@ class FakturPrintFormat {
                     decoration: pw.BoxDecoration(color: PdfColors.grey200),
                     children: [
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                           child: pw.Text("NO", 
-                              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.center)),
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                           child: pw.Text("PRODUK", 
-                              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.left)),
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                           child: pw.Text("QTY", 
-                              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.center)),
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                           child: pw.Text("UNIT", 
-                              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.center)),
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                           child: pw.Text("HARGA", 
-                              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.right)),
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                           child: pw.Text("SUBTOTAL", 
-                              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.right)),
                     ],
                   ),
@@ -188,45 +186,45 @@ class FakturPrintFormat {
                       decoration: i.isEven ? pw.BoxDecoration(color: PdfColors.grey50) : null,
                       children: [
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                             child: pw.Text((i + 1).toString(), 
-                                style: pw.TextStyle(fontSize: 9),
+                                style: pw.TextStyle(fontSize: 8),
                                 textAlign: pw.TextAlign.center)),
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                             child: pw.Text(barang.namaBarang, 
-                                style: pw.TextStyle(fontSize: 9),
+                                style: pw.TextStyle(fontSize: 8),
                                 textAlign: pw.TextAlign.left,
                                 maxLines: 2)),
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                             child: pw.Text(formatnumber.format(d['jumlah'] ?? 0).toString(), 
-                                style: pw.TextStyle(fontSize: 9),
+                                style: pw.TextStyle(fontSize: 8),
                                 textAlign: pw.TextAlign.center)),
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                             child: pw.Text(d['satuan'] ?? '', 
-                                style: pw.TextStyle(fontSize: 9),
+                                style: pw.TextStyle(fontSize: 8),
                                 textAlign: pw.TextAlign.center)),
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                             child: pw.Row(
                               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                               children: [
-                                pw.Text("Rp", style: pw.TextStyle(fontSize: 9)),
+                                pw.Text("Rp", style: pw.TextStyle(fontSize: 8)),
                                 pw.Text(format.format(harga), 
-                                    style: pw.TextStyle(fontSize: 9)),
+                                    style: pw.TextStyle(fontSize: 8)),
                               ],
                             ),
                           ),
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
                             child: pw.Row(
                               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                               children: [
-                                pw.Text("Rp", style: pw.TextStyle(fontSize: 9)),
+                                pw.Text("Rp", style: pw.TextStyle(fontSize: 8)),
                                 pw.Text(formatSubtotal.format(d['subtotal'] ?? 0), 
-                                    style: pw.TextStyle(fontSize: 9)),
+                                    style: pw.TextStyle(fontSize: 8)),
                               ],
                             ),
                           ),

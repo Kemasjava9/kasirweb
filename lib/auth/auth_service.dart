@@ -10,7 +10,6 @@ class AuthService with ChangeNotifier {
   bool _isLoading = false;
   
   // Cache untuk menyimpan data user
-  Map<String, dynamic>? _userData;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
@@ -46,7 +45,6 @@ class AuthService with ChangeNotifier {
       );
 
       _user = userCredential.user;
-      _userData = querySnapshot.docs.first.data();
       
       // Update last login
       await _firestore.collection('users').doc(_user!.uid).update({

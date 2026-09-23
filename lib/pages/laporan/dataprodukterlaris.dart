@@ -8,6 +8,7 @@ import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:universal_html/html.dart' as html;
+import 'laporan_filter.dart';
 
 class ProdukTerlarisWidget extends StatefulWidget {
   const ProdukTerlarisWidget({super.key});
@@ -18,11 +19,15 @@ class ProdukTerlarisWidget extends StatefulWidget {
 
 class _ProdukTerlarisWidgetState extends State<ProdukTerlarisWidget> {
   List<Map<String, dynamic>> _products = [];
+  DateTimeRange? _dateRange;
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: LaporanDb.getBestSellingProducts(),
+      future: LaporanDb.getBestSellingProducts(
+        startDate: _dateRange?.start,
+        endDate: _dateRange?.end,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -60,6 +65,11 @@ class _ProdukTerlarisWidgetState extends State<ProdukTerlarisWidget> {
                   label: const Text('Export CSV'),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            ReportDateRangeFilter(
+              range: _dateRange,
+              onChanged: (range) => setState(() => _dateRange = range),
             ),
             const SizedBox(height: 16),
             Table(
@@ -138,7 +148,7 @@ class _ProdukTerlarisWidgetState extends State<ProdukTerlarisWidget> {
         final bytes = utf8.encode(csv);
         final blob = html.Blob([bytes]);
         final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
+        final _ = html.AnchorElement(href: url)
           ..setAttribute('download', fileName)
           ..click();
         html.Url.revokeObjectUrl(url);

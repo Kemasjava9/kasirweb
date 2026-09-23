@@ -8,6 +8,7 @@ import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:universal_html/html.dart' as html;
+import 'laporan_filter.dart';
 
 class LabaBersihWidget extends StatefulWidget {
   const LabaBersihWidget({super.key});
@@ -18,6 +19,7 @@ class LabaBersihWidget extends StatefulWidget {
 
 class _LabaBersihWidgetState extends State<LabaBersihWidget> {
   Map<String, dynamic> _profitData = {};
+  DateTimeRange? _dateRange;
 
 
   static String formatRupiah(num? value) {
@@ -33,7 +35,10 @@ class _LabaBersihWidgetState extends State<LabaBersihWidget> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
-      future: LaporanDb.calculateNetProfit(),
+      future: LaporanDb.calculateNetProfit(
+        startDate: _dateRange?.start,
+        endDate: _dateRange?.end,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -82,6 +87,11 @@ class _LabaBersihWidgetState extends State<LabaBersihWidget> {
                   label: const Text('Export CSV'),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            ReportDateRangeFilter(
+              range: _dateRange,
+              onChanged: (range) => setState(() => _dateRange = range),
             ),
             const SizedBox(height: 16),
 
@@ -158,7 +168,7 @@ class _LabaBersihWidgetState extends State<LabaBersihWidget> {
         final bytes = utf8.encode(csv);
         final blob = html.Blob([bytes]);
         final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
+        final _ = html.AnchorElement(href: url)
           ..setAttribute('download', fileName)
           ..click();
         html.Url.revokeObjectUrl(url);

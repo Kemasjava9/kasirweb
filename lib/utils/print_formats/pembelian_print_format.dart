@@ -26,76 +26,114 @@ class PembelianPrintFormat {
 
 
 
+    final pageFormat = PdfPageFormat.a5.copyWith(
+      marginLeft: 10,
+      marginRight: 10,
+      marginTop: 10,
+      marginBottom: 10,
+    );
+
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat(210 * PdfPageFormat.mm, 149 * PdfPageFormat.mm),
+        pageFormat: pageFormat,
         build: (pw.Context ctx) {
           return pw.Padding(
             padding: const pw.EdgeInsets.all(16),
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text(
-                  'PURCHASE ORDER',
-                  style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-                ),
-                pw.Divider(),
-                pw.SizedBox(height: 8),
-                pw.Row(
-                  children: [
-                    pw.Expanded(
-                      child: pw.Text('No. PO: $idBeli', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.Center(
+                  child: pw.Text(
+                    'PURCHASE ORDER',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
                     ),
-                    pw.Expanded(
-                      child: pw.Text('Supplier: ${supplier.namaSupplier}'),
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Divider(height: 1),
+                pw.SizedBox(height: 8),
+                pw.Table(
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(90),
+                    1: const pw.FlexColumnWidth(),
+                  },
+                  children: [
+                    pw.TableRow(
+                      children: [
+                        pw.Text('No. PO', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                        pw.Text('$idBeli', style: pw.TextStyle(fontSize: 8)),
+                      ],
+                    ),
+                    pw.TableRow(
+                      children: [
+                        pw.Text('Supplier', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                        pw.Text('${supplier.namaSupplier}', style: pw.TextStyle(fontSize: 8)),
+                      ],
+                    ),
+                    pw.TableRow(
+                      children: [
+                        pw.Text('Tanggal', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                        pw.Text('${pembelianData['tanggal_beli'] ?? ''}', style: pw.TextStyle(fontSize: 8)),
+                      ],
+                    ),
+                    pw.TableRow(
+                      children: [
+                        pw.Text('Status', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                        pw.Text('${pembelianData['status'] ?? ''}', style: pw.TextStyle(fontSize: 8)),
+                      ],
+                    ),
+                    pw.TableRow(
+                      children: [
+                        pw.Text('Jatuh Tempo', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                        pw.Text('${pembelianData['jatuh_tempo'] ?? ''}', style: pw.TextStyle(fontSize: 8)),
+                      ],
                     ),
                   ],
                 ),
-                pw.Row(
-                  children: [
-                    pw.Expanded(
-                      child: pw.Text('Tanggal: ${pembelianData['tanggal_beli'] ?? ''}'),
-                    ),
-                    pw.Expanded(
-                      child: pw.Text('Status: ${pembelianData['status'] ?? ''}'),
-                    )
-                  ]
-                ),
-                pw.Text('Jatuh Tempo: ${pembelianData['jatuh_tempo'] ?? ''}'),
-                pw.SizedBox(height: 12),
+                pw.SizedBox(height: 10),
                 pw.Text(
                   'Detail Barang:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
                 ),
-                pw.SizedBox(height: 8),
+                pw.SizedBox(height: 6),
                 pw.Table(
                   border: pw.TableBorder.all(width: 1, color: PdfColors.black),
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(16),
+                    1: const pw.FlexColumnWidth(2.6),
+                    2: const pw.FixedColumnWidth(24),
+                    3: const pw.FixedColumnWidth(18),
+                    4: const pw.FixedColumnWidth(28),
+                    5: const pw.FixedColumnWidth(28),
+                  },
                   children: [
                     pw.TableRow(
                       children: [
                         pw.Container(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: pw.Text('No', style: pw.TextStyle(fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+                          padding: const pw.EdgeInsets.all(3),
+                          child: pw.Text('No', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
                         ),
                         pw.Container(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: pw.Text('Item', style: pw.TextStyle(fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+                          padding: const pw.EdgeInsets.all(3),
+                          child: pw.Text('Item', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
                         ),
                         pw.Container(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: pw.Text('Jumlah', style: pw.TextStyle(fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+                          padding: const pw.EdgeInsets.all(3),
+                          child: pw.Text('Jml', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
                         ),
                         pw.Container(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: pw.Text('Satuan', style: pw.TextStyle(fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+                          padding: const pw.EdgeInsets.all(3),
+                          child: pw.Text('Sat', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
                         ),
                         pw.Container(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: pw.Text('Harga', style: pw.TextStyle(fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+                          padding: const pw.EdgeInsets.all(3),
+                          child: pw.Text('Harga', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
                         ),
                         pw.Container(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: pw.Text('Subtotal', style: pw.TextStyle(fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+                          padding: const pw.EdgeInsets.all(3),
+                          child: pw.Text('Sub', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
                         ),
                       ],
                     ),
@@ -153,28 +191,56 @@ class PembelianPrintFormat {
                     }),
                   ],
                 ),
-                pw.SizedBox(height: 12),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'Total: ${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(pembelianData['total_beli'] ?? 0)}',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                pw.SizedBox(height: 10),
+                pw.Align(
+                  alignment: pw.Alignment.centerRight,
+                  child: pw.Container(
+                    width: 110,
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(width: 0.5, color: PdfColors.black),
+                      color: PdfColors.grey200,
                     ),
-                  ],
-                ),
-                pw.SizedBox(height: 20),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
-                  children: [
-                    pw.Column(
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
                         pw.Text(
-                          "Disetujui oleh,"
+                          'Total',
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
                         ),
-                        pw.SizedBox(height: 30),
                         pw.Text(
-                          "____________________"
+                          NumberFormat.currency(
+                            locale: 'id',
+                            symbol: 'Rp ',
+                            decimalDigits: 0,
+                          ).format(pembelianData['total_beli'] ?? 0),
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 14),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'Disetujui oleh,',
+                          style: pw.TextStyle(fontSize: 8),
+                        ),
+                        pw.SizedBox(height: 24),
+                        pw.Text(
+                          '____________________',
+                          style: pw.TextStyle(fontSize: 8),
                         ),
                       ],
                     ),
@@ -182,10 +248,13 @@ class PembelianPrintFormat {
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
                         pw.Text(
-                          "Diterima oleh,"),
-                        pw.SizedBox(height: 30), 
+                          'Diterima oleh,',
+                          style: pw.TextStyle(fontSize: 8),
+                        ),
+                        pw.SizedBox(height: 24),
                         pw.Text(
-                          "____________________"
+                          '____________________',
+                          style: pw.TextStyle(fontSize: 8),
                         ),
                       ],
                     ),

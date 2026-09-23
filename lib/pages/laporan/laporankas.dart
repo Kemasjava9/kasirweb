@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:universal_html/html.dart' as html;
 import '../../utils/date_utils.dart';
+import 'laporan_filter.dart';
 
 class LaporanKas extends StatefulWidget {
   const LaporanKas({super.key});
@@ -21,6 +22,7 @@ class _LaporanKasState extends State<LaporanKas> {
   List<Map<String, dynamic>> _cashFlowData = [];
   bool _isLoading = true;
   String? _errorMessage;
+  DateTimeRange? _dateRange;
 
   @override
   void initState() {
@@ -41,6 +43,10 @@ class _LaporanKasState extends State<LaporanKas> {
         _isLoading = false;
       });
     }
+  }
+
+  void _setDateRange(DateTimeRange? range) {
+    setState(() => _dateRange = range);
   }
 
   @override
@@ -87,7 +93,10 @@ class _LaporanKasState extends State<LaporanKas> {
       return const Center(child: Text("Tidak ada data laporan kas"));
     }
 
-    final data = _cashFlowData;
+    final data = _cashFlowData
+      .where((item) => item['is_summary'] != true &&
+        isReportDateInRange(item['tanggal'], _dateRange))
+      .toList();
 
     // Calculate total pemasukan and pengeluaran
     double totalMasuk = 0;
@@ -105,6 +114,10 @@ class _LaporanKasState extends State<LaporanKas> {
 
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+          child: ReportDateRangeFilter(range: _dateRange, onChanged: _setDateRange),
+        ),
         // Summary cards
         Padding(
           padding: const EdgeInsets.all(8.0),
@@ -276,7 +289,8 @@ class _LaporanKasState extends State<LaporanKas> {
       // Prepare CSV data
       List<List<String>> csvData = [
         ['Tanggal', 'Keterangan', 'Kategori', 'Jumlah', 'Jenis'], // Headers
-        ..._cashFlowData.map((item) => [
+        ..._cashFlowData.where((item) => item['is_summary'] != true &&
+          isReportDateInRange(item['tanggal'], _dateRange)).map((item) => [
           formatFlexibleDate(item['tanggal'], 'dd/MM/yyyy'),
           item['keterangan']?.toString() ?? '',
           item['kategori']?.toString() ?? '',

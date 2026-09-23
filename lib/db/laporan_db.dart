@@ -45,26 +45,82 @@ class LaporanDb {
     }
   }
 
+  static bool _isDateInRange(dynamic value, DateTime? startDate, DateTime? endDate) {
+    if (startDate == null && endDate == null) return true;
+    DateTime? date;
+    if (value is Timestamp) {
+      date = value.toDate();
+    } else if (value is DateTime) {
+      date = value;
+    } else if (value is String) {
+      date = DateTime.tryParse(value);
+      if (date == null && value.contains('/')) {
+        date = DateFormat('dd/MM/yyyy').tryParse(value);
+      }
+      if (date == null && value.contains('-')) {
+        date = value.split('-').first.length == 4
+            ? DateFormat('yyyy-MM-dd').tryParse(value)
+            : DateFormat('dd-MM-yyyy').tryParse(value);
+      }
+    }
+    if (date == null) return false;
+    final day = DateTime(date.year, date.month, date.day);
+    final start = startDate == null
+        ? null
+        : DateTime(startDate.year, startDate.month, startDate.day);
+    final end = endDate == null
+        ? null
+        : DateTime(endDate.year, endDate.month, endDate.day);
+    return (start == null || !day.isBefore(start)) &&
+        (end == null || !day.isAfter(end));
+  }
+
   // Get best selling products with improved error handling
   static Future<List<Map<String, dynamic>>> getBestSellingProducts({
     int limit = 10,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     try {
       final querySnapshot = await _firestore
           .collection('detail_penjualan')
           .get();
 
+      Map<String, dynamic> salesDates = {};
+      if (startDate != null || endDate != null) {
+        final salesHeaders = await _firestore.collection('penjualan').get();
+        salesDates = {
+          for (final doc in salesHeaders.docs)
+            if (doc.data()['nofaktur_jual'] != null)
+              doc.data()['nofaktur_jual'].toString(): doc.data()['tanggal_jual'],
+        };
+      }
+
       final Map<String, Map<String, dynamic>> productSales = {};
+      final barangSnapshot = await _firestore.collection('barang').get();
+      final barangByCode = {
+        for (final doc in barangSnapshot.docs)
+          if (doc.data()['kode_barang'] != null)
+            doc.data()['kode_barang'].toString(): doc.data(),
+      };
 
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
-        final namaBarang = data['nama_barang']?.toString().trim() ?? '';
+        final transactionDate = data['tanggal_jual'] ??
+            salesDates[data['nofaktur_jual']?.toString()];
+        if (!_isDateInRange(transactionDate, startDate, endDate)) continue;
+        final barangData = barangByCode[data['kode_barang']?.toString()];
+        final namaBarang = (data['nama_barang']?.toString().trim().isNotEmpty == true
+            ? data['nama_barang'].toString().trim()
+            : barangData?['nama_barang']?.toString().trim()) ??
+          '';
         
         if (namaBarang.isEmpty) continue;
 
         final jumlah = (data['jumlah'] as num?)?.toDouble() ?? 0;
         final hargaSatuan = (data['harga_satuan'] as num?)?.toDouble() ?? 0;
-        final hpp = (data['HPP'] as num?)?.toDouble() ?? 0;
+        final hpp = (data['HPP'] as num?)?.toDouble() ??
+          (barangData?['HPP'] as num?)?.toDouble() ?? 0;
 
         if (productSales.containsKey(namaBarang)) {
           productSales[namaBarang]!['total_terjual'] += jumlah;
@@ -106,18 +162,34 @@ class LaporanDb {
   }
 
   // Improved net profit calculation with better error handling
-  static Future<Map<String, dynamic>> calculateNetProfit() async {
+  static Future<Map<String, dynamic>> calculateNetProfit({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     try {
       // Get sales data
       final salesQuery = await _firestore
           .collection('detail_penjualan')
           .get();
 
+      Map<String, dynamic> salesDates = {};
+      if (startDate != null || endDate != null) {
+        final salesHeaders = await _firestore.collection('penjualan').get();
+        salesDates = {
+          for (final doc in salesHeaders.docs)
+            if (doc.data()['nofaktur_jual'] != null)
+              doc.data()['nofaktur_jual'].toString(): doc.data()['tanggal_jual'],
+        };
+      }
+
       double totalPenjualan = 0;
       double totalLabaPenjualan = 0;
 
       for (var doc in salesQuery.docs) {
         final data = doc.data();
+        final transactionDate = data['tanggal_jual'] ??
+            salesDates[data['nofaktur_jual']?.toString()];
+        if (!_isDateInRange(transactionDate, startDate, endDate)) continue;
         final jumlah = (data['jumlah'] as num?)?.toDouble() ?? 0;
         final hargaSatuan = (data['harga_satuan'] as num?)?.toDouble() ?? 0;
         final namaBarang = data['nama_barang']?.toString() ?? '';
@@ -220,12 +292,25 @@ class LaporanDb {
       double totalKomisi = 0;
       for (var doc in commissionQuery.docs) {
         final data = doc.data();
+        final transactionDate = data['tanggal'] ?? data['tanggal_jual'] ??
+            salesDates[data['nofaktur_jual']?.toString()];
+        if (!_isDateInRange(transactionDate, startDate, endDate)) continue;
         final jumlah = (data['jumlah'] as num?)?.toDouble() ?? 0;
         final nilaiKomisi = (data['nilai_komisi'] as num?)?.toDouble() ?? 0;
         totalKomisi += jumlah * nilaiKomisi;
       }
 
       // Get purchase data
+      Set<String>? purchaseIds;
+      if (startDate != null || endDate != null) {
+        final purchaseHeaders = await _firestore.collection('pembelian').get();
+        purchaseIds = purchaseHeaders.docs
+            .where((doc) => _isDateInRange(doc.data()['tanggal_beli'], startDate, endDate))
+            .map((doc) => doc.data()['id_beli']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toSet();
+      }
+
       final purchaseQuery = await _firestore
           .collection('detail_pembelian')
           .get();
@@ -233,6 +318,7 @@ class LaporanDb {
       double totalPembelian = 0;
       for (var doc in purchaseQuery.docs) {
         final data = doc.data();
+        if (purchaseIds != null && !purchaseIds.contains(data['id_beli']?.toString())) continue;
         final jumlah = (data['jumlah'] as num?)?.toDouble() ?? 0;
         final hargaSatuan = (data['harga_satuan'] as num?)?.toDouble() ?? 0;
         totalPembelian += hargaSatuan * jumlah;
@@ -316,26 +402,43 @@ class LaporanDb {
   // Get commission report with improved formatting
   static Future<List<Map<String, dynamic>>> getCommissionReport() async {
     try {
-      final querySnapshot = await _firestore
-          .collection('komisi')
-          .orderBy('tanggal', descending: true)
-          .get();
+      final querySnapshot = await _firestore.collection('detail_penjualan').get();
+      final salesHeaders = await _firestore.collection('penjualan').get();
+      final salesDates = {
+        for (final doc in salesHeaders.docs)
+          if (doc.data()['nofaktur_jual'] != null)
+            doc.data()['nofaktur_jual'].toString(): doc.data()['tanggal_jual'],
+      };
+      final barangSnapshot = await _firestore.collection('barang').get();
+      final barangByCode = {
+        for (final doc in barangSnapshot.docs)
+          if (doc.data()['kode_barang'] != null)
+            doc.data()['kode_barang'].toString(): doc.data(),
+      };
 
       double totalKomisiAll = 0;
       final results = querySnapshot.docs.map((doc) {
         final data = doc.data();
-        final totalKomisi = (data['total_komisi'] as num?)?.toDouble() ?? 0;
+        final kodeBarang = data['kode_barang']?.toString() ?? '-';
+        final barangData = barangByCode[kodeBarang];
+        final jumlah = (data['jumlah'] as num?)?.toDouble() ?? 0;
+        final nilaiKomisi = (data['nilai_komisi'] as num?)?.toDouble() ?? 0;
+        final totalKomisi = jumlah * nilaiKomisi;
         totalKomisiAll += totalKomisi;
 
         return {
           'id': doc.id,
-          'tanggal': _formatDate(data['tanggal']),
-          'kode_barang': _safeValue(data['kode_barang'], defaultValue: '-'),
-          'nama_barang': _safeValue(data['nama_barang'], defaultValue: '-'),
-          'jumlah': _safeValue(data['jumlah'], defaultValue: 0.0),
+          'tanggal': _formatDate(salesDates[data['nofaktur_jual']?.toString()]),
+          'tanggal_value': salesDates[data['nofaktur_jual']?.toString()],
+          'kode_barang': kodeBarang,
+          'nama_barang': _safeValue(
+            data['nama_barang'] ?? barangData?['nama_barang'],
+            defaultValue: '-',
+          ),
+          'jumlah': jumlah,
           'satuan': _safeValue(data['satuan'], defaultValue: '-'),
-          'nilai_komisi': _safeValue(data['nilai_komisi'], defaultValue: 0.0),
-          'nilai_komisi_formatted': _formatCurrency(data['nilai_komisi']),
+          'nilai_komisi': nilaiKomisi,
+          'nilai_komisi_formatted': _formatCurrency(nilaiKomisi),
           'nama_komisi': _safeValue(data['nama_komisi'], defaultValue: '-'),
           'total_komisi': totalKomisi,
           'total_komisi_formatted': _formatCurrency(totalKomisi),
@@ -545,6 +648,7 @@ class LaporanDb {
         String namaSupplier = '-';
         String status = '-';
         String tanggalBeli = '-';
+        dynamic tanggalBeliValue;
         String jatuhTempo = '-';
 
         if (idBeli.isNotEmpty) {
@@ -580,6 +684,7 @@ class LaporanDb {
               }
 
               status = pembelianData['status']?.toString() ?? '-';
+              tanggalBeliValue = pembelianData['tanggal_beli'];
               tanggalBeli = _formatDate(pembelianData['tanggal_beli']);
               jatuhTempo = _formatDate(pembelianData['jatuh_tempo']);
               print('DEBUG: Found pembelian data for $idBeli: kode_supplier=$kodeSupplier, status=$status');
@@ -626,6 +731,7 @@ class LaporanDb {
           'subtotal_formatted': _formatCurrency(subtotal),
           'status': status,
           'tanggal_beli': tanggalBeli,
+          'tanggal_beli_value': tanggalBeliValue,
           'jatuh_tempo': jatuhTempo,
         };
 
