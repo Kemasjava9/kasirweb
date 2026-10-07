@@ -113,9 +113,9 @@ class FakturPrintFormat {
                   0: const pw.FixedColumnWidth(20),  // No
                   1: const pw.FlexColumnWidth(3.5),  // Produk (fleksibel)
                   2: const pw.FixedColumnWidth(45),  // Qty
-                  3: const pw.FixedColumnWidth(30),  // Unit
-                  4: const pw.FixedColumnWidth(60),  // Harga
-                  5: const pw.FixedColumnWidth(65),  // Subtotal
+                  3: const pw.FixedColumnWidth(25),  // Unit
+                  4: const pw.FixedColumnWidth(55),  // Harga
+                  5: const pw.FixedColumnWidth(60),  // Subtotal
                 },
                 defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
                 children: [
