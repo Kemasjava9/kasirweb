@@ -112,8 +112,8 @@ class FakturPrintFormat {
                 columnWidths: {
                   0: const pw.FixedColumnWidth(20),  // No
                   1: const pw.FlexColumnWidth(3.5),  // Produk (fleksibel)
-                  2: const pw.FixedColumnWidth(30),  // Qty
-                  3: const pw.FixedColumnWidth(35),  // Unit
+                  2: const pw.FixedColumnWidth(40),  // Qty
+                  3: const pw.FixedColumnWidth(30),  // Unit
                   4: const pw.FixedColumnWidth(60),  // Harga
                   5: const pw.FixedColumnWidth(65),  // Subtotal
                 },
