@@ -12,9 +12,9 @@ class FakturPrintFormat {
 
     final pdf = pw.Document();
     final format = NumberFormat.currency(
-        locale: 'id', symbol: ' ', decimalDigits: 1);
+        locale: 'id', symbol: '', decimalDigits: 1);
     final formatSubtotal = NumberFormat.currency(
-        locale: 'id', symbol: ' ', decimalDigits: 0);
+        locale: 'id', symbol: '', decimalDigits: 0);
     final formatnumber = NumberFormat.decimalPattern('id');
 
     final noFaktur = header['nofaktur_jual'] ?? '';
@@ -30,7 +30,6 @@ class FakturPrintFormat {
         (previousValue, element) =>
             previousValue + (double.tryParse(element['subtotal']?.toString() ?? '0') ?? 0.0));
 
-    // Gunakan format kertas A5 agar ukuran printer/preview sesuai standar
     final pageFormat = PdfPageFormat.a5.copyWith(
       marginLeft: 8,
       marginRight: 8,
@@ -43,7 +42,7 @@ class FakturPrintFormat {
         pageFormat: pageFormat,
         build: (context) {
           return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            cross========================: pw.CrossAxisAlignment.start,
             children: [
               // ==============================
               // HEADER - 2 kolom
@@ -52,7 +51,6 @@ class FakturPrintFormat {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  // Kolom kiri - INFO TOKO/PELANGGAN
                   pw.Expanded(
                     flex: 2,
                     child: pw.Column(
@@ -75,8 +73,6 @@ class FakturPrintFormat {
                       ],
                     ),
                   ),
-                  
-                  // Kolom kanan - INFO FAKTUR
                   pw.Expanded(
                     flex: 1,
                     child: pw.Column(
@@ -114,12 +110,12 @@ class FakturPrintFormat {
                   verticalInside: pw.BorderSide(width: 0.5),
                 ),
                 columnWidths: {
-                  0: const pw.FixedColumnWidth(18),  // No
-                  1: const pw.FlexColumnWidth(2.2),  // Produk
-                  2: const pw.FixedColumnWidth(22),  // Qty
-                  3: const pw.FixedColumnWidth(22),  // Unit
-                  4: const pw.FixedColumnWidth(32),  // Harga
-                  5: const pw.FixedColumnWidth(34),  // Subtotal
+                  0: const pw.FixedColumnWidth(20),  // No
+                  1: const pw.FlexColumnWidth(3.5),  // Produk (fleksibel)
+                  2: const pw.FixedColumnWidth(30),  // Qty (diperlebar)
+                  3: const pw.FixedColumnWidth(35),  // Unit (diperlebar)
+                  4: const pw.FixedColumnWidth(60),  // Harga (diperlebar)
+                  5: const pw.FixedColumnWidth(65),  // Subtotal (diperlebar)
                 },
                 defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
                 children: [
@@ -128,32 +124,32 @@ class FakturPrintFormat {
                     decoration: pw.BoxDecoration(color: PdfColors.grey200),
                     children: [
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
                           child: pw.Text("NO", 
                               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.center)),
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 3),
                           child: pw.Text("PRODUK", 
                               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.left)),
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
                           child: pw.Text("QTY", 
                               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.center)),
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
                           child: pw.Text("UNIT", 
                               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.center)),
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 3),
                           child: pw.Text("HARGA", 
                               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.right)),
                       pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 3),
                           child: pw.Text("SUBTOTAL", 
                               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.right)),
@@ -178,7 +174,6 @@ class FakturPrintFormat {
                             hpp: 0,
                             hppDus: 0));
 
-                    // Determine price based on unit
                     final satuan = d['satuan'] ?? '';
                     final harga = satuan == barang.satuanPcs ? barang.hargaPcs : barang.hargaDus;
 
@@ -186,48 +181,36 @@ class FakturPrintFormat {
                       decoration: i.isEven ? pw.BoxDecoration(color: PdfColors.grey50) : null,
                       children: [
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 2),
                             child: pw.Text((i + 1).toString(), 
                                 style: pw.TextStyle(fontSize: 8),
                                 textAlign: pw.TextAlign.center)),
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 3),
                             child: pw.Text(barang.namaBarang, 
                                 style: pw.TextStyle(fontSize: 8),
                                 textAlign: pw.TextAlign.left,
                                 maxLines: 2)),
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 2),
                             child: pw.Text(formatnumber.format(d['jumlah'] ?? 0).toString(), 
                                 style: pw.TextStyle(fontSize: 8),
                                 textAlign: pw.TextAlign.center)),
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 2),
                             child: pw.Text(d['satuan'] ?? '', 
                                 style: pw.TextStyle(fontSize: 8),
                                 textAlign: pw.TextAlign.center)),
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
-                            child: pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                              children: [
-                                pw.Text("Rp", style: pw.TextStyle(fontSize: 8)),
-                                pw.Text(format.format(harga), 
-                                    style: pw.TextStyle(fontSize: 8)),
-                              ],
-                            ),
-                          ),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 3),
+                            child: pw.Text(format.format(harga), 
+                                style: pw.TextStyle(fontSize: 8),
+                                textAlign: pw.TextAlign.right)),
                         pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 1),
-                            child: pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                              children: [
-                                pw.Text("Rp", style: pw.TextStyle(fontSize: 8)),
-                                pw.Text(formatSubtotal.format(d['subtotal'] ?? 0), 
-                                    style: pw.TextStyle(fontSize: 8)),
-                              ],
-                            ),
-                          ),
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 3),
+                            child: pw.Text(formatSubtotal.format(d['subtotal'] ?? 0), 
+                                style: pw.TextStyle(fontSize: 8),
+                                textAlign: pw.TextAlign.right)),
                       ],
                     );
                   })
@@ -242,9 +225,8 @@ class FakturPrintFormat {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  // TANDA TANGAN
                   pw.Container(
-                    width: 70, // Lebar tetap untuk tanda tangan
+                    width: 70,
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
@@ -262,14 +244,13 @@ class FakturPrintFormat {
                     ),
                   ),
                   
-                  // TOTAL PEMBAYARAN - DIPERKECIL
                   pw.Container(
-                    width: 150, // Lebar tabel diperkecil
+                    width: 150,
                     child: pw.Table(
                       border: pw.TableBorder.all(width: 0.5),
                       columnWidths: {
-                        0: const pw.FlexColumnWidth(1.8), // Label lebih lebar
-                        1: const pw.FlexColumnWidth(2),   // Nilai lebih sempit
+                        0: const pw.FlexColumnWidth(1.8),
+                        1: const pw.FlexColumnWidth(2),
                       },
                       defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
                       children: [
@@ -371,7 +352,7 @@ class FakturPrintFormat {
               ),
 
               pw.SizedBox(height: 10),
-              
+
               // ==============================
               // FOOTER
               // ==============================
