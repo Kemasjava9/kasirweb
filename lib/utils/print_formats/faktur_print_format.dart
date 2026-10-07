@@ -42,7 +42,7 @@ class FakturPrintFormat {
         pageFormat: pageFormat,
         build: (context) {
           return pw.Column(
-            cross========================: pw.CrossAxisAlignment.start,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // ==============================
               // HEADER - 2 kolom
@@ -112,10 +112,10 @@ class FakturPrintFormat {
                 columnWidths: {
                   0: const pw.FixedColumnWidth(20),  // No
                   1: const pw.FlexColumnWidth(3.5),  // Produk (fleksibel)
-                  2: const pw.FixedColumnWidth(30),  // Qty (diperlebar)
-                  3: const pw.FixedColumnWidth(35),  // Unit (diperlebar)
-                  4: const pw.FixedColumnWidth(60),  // Harga (diperlebar)
-                  5: const pw.FixedColumnWidth(65),  // Subtotal (diperlebar)
+                  2: const pw.FixedColumnWidth(30),  // Qty
+                  3: const pw.FixedColumnWidth(35),  // Unit
+                  4: const pw.FixedColumnWidth(60),  // Harga
+                  5: const pw.FixedColumnWidth(65),  // Subtotal
                 },
                 defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
                 children: [
